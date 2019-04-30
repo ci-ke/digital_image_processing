@@ -1,5 +1,5 @@
-#ifndef _DIPCODE_H
-#define _DIPCODE_H
+#ifndef BMP_PROCESS_H
+#define BMP_PROCESS_H
 
 #define WIDTHcharS(bits) (((bits) + 31) / 32 * 4)
 #define SHOWHEADER 0

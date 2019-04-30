@@ -1,4 +1,4 @@
-#include "dipcode.h"
+#include "bmp_process.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

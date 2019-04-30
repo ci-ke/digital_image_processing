@@ -1,4 +1,4 @@
-#include "dipcode.h"
+#include "bmp_process.h"
 
 extern RGB BLACK;
 extern RGB WHITE;
