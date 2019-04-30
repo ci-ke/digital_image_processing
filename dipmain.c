@@ -1,4 +1,5 @@
 #include "dipcode.h"
+#include <stdlib.h>
 
 extern RGBQUAD BLACK;
 extern RGBQUAD WHITE;
@@ -6,8 +7,9 @@ extern RGBQUAD GRAY127;
 
 int main(int argc, char *argv[])
 {
+	system("chcp 65001"); //cmd使用UTF8编码
 	BMP *bmp1 = readBMP(argv[1]);
-	BMP *bmp2 = BMPenlarge(bmp1,1.5,1.5);
+	BMP *bmp2 = BMPenlarge(bmp1, 1.5, 1.5);
 	saveBMP(bmp2, "pic/save.bmp");
 	return 0;
 }

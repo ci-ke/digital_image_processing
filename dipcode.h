@@ -1,43 +1,41 @@
 #ifndef _DIPCODE_H
 #define _DIPCODE_H
 
-#pragma pack(1) //强制内存以1字节为单位对齐
-
 #define WIDTHcharS(bits) (((bits) + 31) / 32 * 4)
-#define SHOW 0
+#define SHOW 1
 
 typedef unsigned char uchar;
 typedef char BOOL;
 
-//位图文件头信息结构定义
-//其中不包含文件类型信息（由于结构体的内存结构决定，要是加了的话将不能正确读取文件信息）
+#pragma pack(1)
+
+//文件头
 typedef struct _BITMAPFILEHEADER
 {
 	short bfType;
-	int bfSize;		   //文件大小
+	long bfSize;	   //文件大小
 	short bfReserved1; //保留字，不考虑
 	short bfReserved2; //保留字，同上
-	int bfOffBits;	 //实际位图数据的偏移字节数，即前三个部分长度之和
+	long bfOffBits;	//实际位图数据的偏移字节数，即前三个部分长度之和
 } BITMAPFILEHEADER;
 
 //信息头
 typedef struct _BITMAPINFOHEADER
 {
-	int biSize;			  //指定此结构体的长度，为40
+	long biSize;		  //指定此结构体的长度，为40
 	long biWidth;		  //位图宽
 	long biHeight;		  //位图高
 	short biPlanes;		  //平面数，为1
 	short biBitCount;	 //采用颜色位数，可以是1，2，4，8，16，24，新的可以是32
-	int biCompression;	//压缩方式，可以是0，1，2，其中0表示不压缩
-	int biSizeImage;	  //实际位图数据占用的字节数
+	long biCompression;   //压缩方式，可以是0，1，2，其中0表示不压缩
+	long biSizeImage;	 //实际位图数据占用的字节数
 	long biXPelsPerMeter; //X方向分辨率
 	long biYPelsPerMeter; //Y方向分辨率
-	int biClrUsed;		  //使用的颜色数，如果为0，则表示默认值(2^颜色位数)
-	int biClrImportant;   //重要颜色数，如果为0，则表示所有颜色都是重要的
+	long biClrUsed;		  //使用的颜色数，如果为0，则表示默认值(2^颜色位数)
+	long biClrImportant;  //重要颜色数，如果为0，则表示所有颜色都是重要的
 } BITMAPINFOHEADER;
 
-//调色板Palette，当然，这里是对那些需要调色板的位图文件而言的。24位和32位是不需要调色板的。
-//（似乎是调色板结构体个数等于使用的颜色数。）
+//调色板Palette，当然，这里是对那些需要调色板的位图文件而言的。24位和32位是不需要调色板的。（似乎是调色板结构体个数等于使用的颜色数。）
 typedef struct _RGBQUAD
 {
 	uchar rgbBlue;	//该颜色的蓝色分量
@@ -45,6 +43,8 @@ typedef struct _RGBQUAD
 	uchar rgbRed;	 //该颜色的红色分量
 	char rgbReserved; //保留值
 } RGBQUAD;
+
+#pragma pack()
 
 typedef struct _RGBQUADINT
 {

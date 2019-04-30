@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <memory.h>
+#include <string.h>
 
 RGBQUAD BLACK = {0, 0, 0, 0};
 RGBQUAD WHITE = {255, 255, 255, 0};
@@ -12,39 +13,33 @@ BMP *readBMP(char *strFile)
 {
     BITMAPFILEHEADER bitHead;
     BITMAPINFOHEADER bitInfoHead;
-    BMP *bmp = (BMP *)malloc(sizeof(BMP));
-    int i, j;
     FILE *pfile;
     pfile = fopen(strFile, "rb");
     if (pfile != NULL)
-    {
-        printf("file %s open success.\n", strFile);
-        fread(&bitHead, 1, sizeof(BITMAPFILEHEADER), pfile);
+    {        
+        fread(&bitHead, sizeof(BITMAPFILEHEADER), 1, pfile); //需要保证文件头单字节对齐
         if (bitHead.bfType != 0x4d42)
         {
-            printf("file is not .bmp file!");
+            printf("file %s is not .bmp file!\n", strFile);
             return NULL;
         }
-        if (SHOW)
-        {
-            showBmpHead(&bitHead);
-            printf("\n");
-        }
-        fread(&bitInfoHead, 1, sizeof(BITMAPINFOHEADER), pfile);
-        if (SHOW)
-        {
-            showBmpInforHead(&bitInfoHead);
-            printf("\n");
-        }
+#if SHOW == 1
+        showBmpHead(&bitHead);
+        printf("\n");
+#endif
+        fread(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile);
+#if SHOW == 1
+        showBmpInforHead(&bitInfoHead);
+        printf("\n");
+#endif
     }
     else
     {
-        printf("file open fail!\n");
+        printf("file %s open fail!\n", strFile);
         return NULL;
     }
     RGBQUAD *pRgb = NULL;
-    //有调色板
-    if (bitInfoHead.biBitCount < 24)
+    if (bitInfoHead.biBitCount < 24) //有调色板
     {
         long nPlantNum = bitInfoHead.biClrUsed;
         if (!nPlantNum)
@@ -53,56 +48,45 @@ BMP *readBMP(char *strFile)
         }
         pRgb = (RGBQUAD *)malloc(sizeof(RGBQUAD) * nPlantNum);
         memset(pRgb, 0, nPlantNum * sizeof(RGBQUAD));
-        int num = fread(pRgb, 4, nPlantNum, pfile);
-        if (SHOW)
-        {
-            printf("Color Plate Number: %d\n", nPlantNum);
-            printf("颜色板信息:\n");
-            showRgbQuan(pRgb, nPlantNum);
-        }
+        fread(pRgb, 4, nPlantNum, pfile); //需要保证RGBQUAD单字节对齐
+#if SHOW == 1
+        printf("Color Plate Number: %d\n", nPlantNum);
+        printf("颜色板信息:\n");
+        showRgbQuan(pRgb, nPlantNum);
+#endif
     }
-    int width = bitInfoHead.biWidth;
-    int height = bitInfoHead.biHeight;
-    //分配内存空间把源图存入内存
-    int l_width = WIDTHcharS(width * bitInfoHead.biBitCount);
-    //计算位图的实际宽度并确保它为32的倍数
+    long width = bitInfoHead.biWidth;
+    long height = bitInfoHead.biHeight;
+    long l_width = WIDTHcharS(width * bitInfoHead.biBitCount); //计算位图的实际宽度并确保它为32的倍数
     long nData = height * l_width;
     char *pColorData = (char *)malloc(nData);
     memset(pColorData, 0, nData);
-    //把位图数据信息读到数组里
-    fread(pColorData, 1, nData, pfile);
-    //将位图数据转化为RGB数据
-    //用于保存各像素对应的RGB数据
-    RGBQUAD **dataOfBmp_src = NULL;
+    fread(pColorData, nData, 1, pfile); //把位图数据信息读到数组里
+    RGBQUAD **dataOfBmp_src = NULL;     //将位图数据转化为RGB数据
     dataOfBmp_src = (RGBQUAD **)malloc(sizeof(RGBQUAD *) * height);
-    for (i = 0; i < height; i++)
+    for (int i = 0; i < height; i++)
     {
         dataOfBmp_src[i] = (RGBQUAD *)malloc(sizeof(RGBQUAD) * width);
     }
-    //有调色板，即位图为非真彩色
-    if (bitInfoHead.biBitCount < 24)
+    if (bitInfoHead.biBitCount < 24) //有调色板，即位图为非真彩色
     {
-        int k;
         if (bitInfoHead.biBitCount <= 8 && !bitInfoHead.biCompression)
         {
             int pnum = 8 / bitInfoHead.biBitCount;
             int mbnum = 8 - bitInfoHead.biBitCount;
             for (int i = 0; i < height; i++)
             {
-                //k:取得该像素颜色数据在实际数据数组中的序号
-                int k0 = (height - i - 1) * l_width;
+                int k0 = (height - i - 1) * l_width; //k:取得该像素颜色数据在实际数据数组中的序号
                 for (int j = 0; j < width; j++)
                 {
                     char mixIndex = 0;
-                    k = k0 + (j / pnum);
-                    //mixIndex:提取当前像素的颜色的在颜色表中的索引值
-                    mixIndex = pColorData[k];
+                    int k = k0 + (j / pnum);
+                    mixIndex = pColorData[k]; //提取当前像素的颜色的在颜色表中的索引值
                     if (bitInfoHead.biBitCount < 8)
                     {
                         mixIndex = mixIndex << ((j % pnum) * bitInfoHead.biBitCount);
                         mixIndex = mixIndex >> mbnum;
                     }
-                    //将像素颜色数据（RGBA）保存到数组中对应的位置
                     dataOfBmp_src[i][j].rgbRed = pRgb[mixIndex].rgbRed;
                     dataOfBmp_src[i][j].rgbGreen = pRgb[mixIndex].rgbGreen;
                     dataOfBmp_src[i][j].rgbBlue = pRgb[mixIndex].rgbBlue;
@@ -114,13 +98,13 @@ BMP *readBMP(char *strFile)
         {
             if (!bitInfoHead.biCompression)
             {
-                for (i = 0; i < height; i++)
+                for (int i = 0; i < height; i++)
                 {
                     int k0 = (height - i - 1) * l_width;
-                    for (j = 0; j < width; j++)
+                    for (int j = 0; j < width; j++)
                     {
                         short mixIndex = 0;
-                        k = k0 + j * 2;
+                        int k = k0 + j * 2;
                         short shortTemp;
                         shortTemp = pColorData[k + 1];
                         shortTemp = shortTemp << 8;
@@ -134,21 +118,17 @@ BMP *readBMP(char *strFile)
             }
         }
     }
-    //位图为24/32位真彩色
-    else
+    else //位图为24/32位真彩色
     {
-        int k;
-        int index = 0;
         if (bitInfoHead.biBitCount == 16)
         {
-            for (i = 0; i < height; i++)
+            for (int i = 0; i < height; i++)
             {
                 int k0 = (height - i - 1) * l_width;
-                for (j = 0; j < width; j++)
+                for (int j = 0; j < width; j++)
                 {
-                    k = k0 + j * 2;
-                    //555格式
-                    if (!bitInfoHead.biCompression)
+                    int k = k0 + j * 2;
+                    if (!bitInfoHead.biCompression) //555格式
                     {
                         dataOfBmp_src[i][j].rgbBlue = pColorData[k] & 0x1F;
                         dataOfBmp_src[i][j].rgbGreen = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
@@ -160,12 +140,12 @@ BMP *readBMP(char *strFile)
         }
         if (bitInfoHead.biBitCount == 24 && !bitInfoHead.biCompression)
         {
-            for (i = 0; i < height; i++)
+            for (int i = 0; i < height; i++)
             {
                 int k0 = (height - i - 1) * l_width;
-                for (j = 0; j < width; j++)
+                for (int j = 0; j < width; j++)
                 {
-                    k = k0 + (j * 3);
+                    int k = k0 + (j * 3);
                     dataOfBmp_src[i][j].rgbRed = pColorData[k + 2];
                     dataOfBmp_src[i][j].rgbGreen = pColorData[k + 1];
                     dataOfBmp_src[i][j].rgbBlue = pColorData[k];
@@ -175,12 +155,12 @@ BMP *readBMP(char *strFile)
         }
         if (bitInfoHead.biBitCount == 32 && !bitInfoHead.biCompression)
         {
-            for (i = 0; i < height; i++)
+            for (int i = 0; i < height; i++)
             {
                 int k0 = (height - i - 1) * l_width;
-                for (j = 0; j < width; j++)
+                for (int j = 0; j < width; j++)
                 {
-                    k = k0 + (j * 4);
+                    int k = k0 + (j * 4);
                     dataOfBmp_src[i][j].rgbRed = pColorData[k + 2];
                     dataOfBmp_src[i][j].rgbGreen = pColorData[k + 1];
                     dataOfBmp_src[i][j].rgbBlue = pColorData[k];
@@ -198,9 +178,11 @@ BMP *readBMP(char *strFile)
         free(pColorData);
     }
     fclose(pfile);
+    BMP *bmp = (BMP *)malloc(sizeof(BMP));
     bmp->data = dataOfBmp_src;
     bmp->width = width;
     bmp->height = height;
+    printf("file %s read success.\n", strFile);
     return bmp;
 }
 
@@ -209,7 +191,6 @@ void saveBMP(BMP *bmp, char *strFile)
     RGBQUAD **dataOfBmp = bmp->data;
     int width = bmp->width;
     int height = bmp->height;
-    int i, j;
     BITMAPFILEHEADER bitHead;
     BITMAPINFOHEADER bitInfoHead;
     short biBitCount = 32;
@@ -226,7 +207,7 @@ void saveBMP(BMP *bmp, char *strFile)
         {
             bitHead.bfOffBits += (int)pow(2, biBitCount) * 4;
         }
-        fwrite(&bitHead, 1, sizeof(BITMAPFILEHEADER), pfile);
+        fwrite(&bitHead.bfType, sizeof(BITMAPFILEHEADER), 1, pfile);
         bitInfoHead.biSize = 40;
         bitInfoHead.biWidth = width;
         bitInfoHead.biHeight = height;
@@ -238,26 +219,25 @@ void saveBMP(BMP *bmp, char *strFile)
         bitInfoHead.biYPelsPerMeter = 0;
         bitInfoHead.biClrImportant = 0;
         bitInfoHead.biClrUsed = 0;
-        fwrite(&bitInfoHead, 1, sizeof(BITMAPINFOHEADER), pfile);
+        fwrite(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile);
         if (biBitCount <= 8)
         {
             char tmp = 0;
-            for (i = 0; i < (int)pow(2, biBitCount); i++)
+            for (int i = 0; i < (int)pow(2, biBitCount); i++)
             {
                 tmp = (char)i;
                 fwrite(&tmp, 1, 4, pfile);
             }
         }
-        //计算为确保位图数据区的实际宽度为32字节的整数倍需添加的0字节个数
-        int l_width = WIDTHcharS(width * biBitCount) - width * 4;
-        for (i = 0; i < height; i++)
+        int l_width = WIDTHcharS(width * biBitCount) - width * 4; //计算为确保位图数据区的实际宽度为32字节的整数倍需添加的'0'字节数
+        for (int i = 0; i < height; i++)
         {
-            for (j = 0; j < width; j += 1)
+            for (int j = 0; j < width; j++)
             {
-                fwrite(&dataOfBmp[height - i - 1][j], 1, 4, pfile);
+                fwrite(&dataOfBmp[height - i - 1][j], 4, 1, pfile);
             }
             char tmp = 0;
-            for (j = 0; j < l_width; j++)
+            for (int j = 0; j < l_width; j++)
             {
                 fwrite(&tmp, 1, 1, pfile);
             }
@@ -791,8 +771,8 @@ BMP *BMPwidthenlarge(BMP *bmp, float widthcof)
 
 BMP *BMPenlarge(BMP *bmp, float heightcof, float widthcof)
 {
-    BMP* bmpheight=BMPheightenlarge(bmp,heightcof);
-    BMP* bmpheightwidth=BMPwidthenlarge(bmpheight,widthcof);
+    BMP *bmpheight = BMPheightenlarge(bmp, heightcof);
+    BMP *bmpheightwidth = BMPwidthenlarge(bmpheight, widthcof);
     deleteBMP(bmpheight);
     return bmpheightwidth;
 }
