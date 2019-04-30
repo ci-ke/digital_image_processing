@@ -5,68 +5,112 @@
 #include <memory.h>
 #include <string.h>
 
-RGBQUAD BLACK = {0, 0, 0, 0};
-RGBQUAD WHITE = {255, 255, 255, 0};
-RGBQUAD GRAY127 = {127, 127, 127, 0};
+RGB BLACK = {0, 0, 0, 0};
+RGB WHITE = {255, 255, 255, 0};
+RGB GRAY127 = {127, 127, 127, 0};
+
+void showBmpHead(BITMAPFILEHEADER *pBmpHead)
+{
+    printf("位图文件头:\n");
+    printf("文件类型:%x\n", pBmpHead->bfType);
+    printf("文件大小:%d\n", pBmpHead->bfSize);
+    printf("保留字:%d\n", pBmpHead->bfReserved1);
+    printf("保留字:%d\n", pBmpHead->bfReserved2);
+    printf("实际位图数据的偏移字节数:%d\n", pBmpHead->bfOffBits);
+}
+
+void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead)
+{
+    printf("位图信息头:\n");
+    printf("结构体的长度:%d\n", pBmpInforHead->biSize);
+    printf("位图宽:%d\n", pBmpInforHead->biWidth);
+    printf("位图高:%d\n", pBmpInforHead->biHeight);
+    printf("biPlanes平面数:%d\n", pBmpInforHead->biPlanes);
+    printf("biBitCount采用颜色位数:%d\n", pBmpInforHead->biBitCount);
+    printf("压缩方式:%d\n", pBmpInforHead->biCompression);
+    printf("biSizeImage实际位图数据占用的字节数:%d\n", pBmpInforHead->biSizeImage);
+    printf("X方向分辨率:%d\n", pBmpInforHead->biXPelsPerMeter);
+    printf("Y方向分辨率:%d\n", pBmpInforHead->biYPelsPerMeter);
+    printf("使用的颜色数:%d\n", pBmpInforHead->biClrUsed);
+    printf("重要颜色数:%d\n", pBmpInforHead->biClrImportant);
+}
+
+void showRgbQuan(RGB *pRGB, int num)
+{
+    for (int i = 0; i < num; i++)
+    {
+        if (i % 5 == 0)
+        {
+            printf("\n");
+        }
+        printf("(%-3d,%-3d,%-3d)   ", (pRGB + i)->red, (pRGB + i)->green, (pRGB + i)->blue);
+    }
+    printf("\n");
+}
 
 BMP *readBMP(char *strFile)
 {
     BITMAPFILEHEADER bitHead;
     BITMAPINFOHEADER bitInfoHead;
+    if (sizeof(BITMAPFILEHEADER) != 14 || sizeof(BITMAPINFOHEADER) != 40)
+    {
+        printf("program can not run at this machine.\n");
+        return NULL;
+    }
     FILE *pfile;
     pfile = fopen(strFile, "rb");
     if (pfile != NULL)
-    {        
+    {
         fread(&bitHead, sizeof(BITMAPFILEHEADER), 1, pfile); //需要保证文件头单字节对齐
         if (bitHead.bfType != 0x4d42)
         {
-            printf("file %s is not .bmp file!\n", strFile);
+            printf("file %s is not .bmp file.\n", strFile);
             return NULL;
         }
-#if SHOW == 1
+#if SHOWHEADER == 1
         showBmpHead(&bitHead);
         printf("\n");
 #endif
-        fread(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile);
-#if SHOW == 1
+        fread(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile); //需要保证信息头单字节对齐
+#if SHOWHEADER == 1
         showBmpInforHead(&bitInfoHead);
         printf("\n");
 #endif
     }
     else
     {
-        printf("file %s open fail!\n", strFile);
+        printf("file %s open fail.\n", strFile);
         return NULL;
     }
-    RGBQUAD *pRgb = NULL;
+    RGB *pRgb = NULL;
     if (bitInfoHead.biBitCount < 24) //有调色板
     {
-        long nPlantNum = bitInfoHead.biClrUsed;
+        int nPlantNum = bitInfoHead.biClrUsed;
         if (!nPlantNum)
         {
             nPlantNum = pow(2, bitInfoHead.biBitCount);
         }
-        pRgb = (RGBQUAD *)malloc(sizeof(RGBQUAD) * nPlantNum);
-        memset(pRgb, 0, nPlantNum * sizeof(RGBQUAD));
-        fread(pRgb, 4, nPlantNum, pfile); //需要保证RGBQUAD单字节对齐
-#if SHOW == 1
-        printf("Color Plate Number: %d\n", nPlantNum);
+        pRgb = (RGB *)malloc(sizeof(RGB) * nPlantNum);
+        memset(pRgb, 0, nPlantNum * sizeof(RGB));
+        fread(pRgb, sizeof(pRgb), nPlantNum, pfile); //需要保证RGB单字节对齐
+#if SHOWHEADER == 1
+        printf("Color Plate Number:%d\n", nPlantNum);
         printf("颜色板信息:\n");
         showRgbQuan(pRgb, nPlantNum);
 #endif
     }
-    long width = bitInfoHead.biWidth;
-    long height = bitInfoHead.biHeight;
-    long l_width = WIDTHcharS(width * bitInfoHead.biBitCount); //计算位图的实际宽度并确保它为32的倍数
-    long nData = height * l_width;
+    int width = bitInfoHead.biWidth;
+    int height = bitInfoHead.biHeight;
+    int l_width = WIDTHcharS(width * bitInfoHead.biBitCount); //计算位图的实际宽度并确保它为32的倍数
+    int nData = height * l_width;
     char *pColorData = (char *)malloc(nData);
     memset(pColorData, 0, nData);
     fread(pColorData, nData, 1, pfile); //把位图数据信息读到数组里
-    RGBQUAD **dataOfBmp_src = NULL;     //将位图数据转化为RGB数据
-    dataOfBmp_src = (RGBQUAD **)malloc(sizeof(RGBQUAD *) * height);
+    RGB **dataOfBmp_src = NULL;         //将位图数据转化为RGB数据
+    dataOfBmp_src = (RGB **)malloc(sizeof(RGB *) * height);
     for (int i = 0; i < height; i++)
     {
-        dataOfBmp_src[i] = (RGBQUAD *)malloc(sizeof(RGBQUAD) * width);
+        dataOfBmp_src[i] = (RGB *)malloc(sizeof(RGB) * width);
     }
     if (bitInfoHead.biBitCount < 24) //有调色板，即位图为非真彩色
     {
@@ -87,10 +131,10 @@ BMP *readBMP(char *strFile)
                         mixIndex = mixIndex << ((j % pnum) * bitInfoHead.biBitCount);
                         mixIndex = mixIndex >> mbnum;
                     }
-                    dataOfBmp_src[i][j].rgbRed = pRgb[mixIndex].rgbRed;
-                    dataOfBmp_src[i][j].rgbGreen = pRgb[mixIndex].rgbGreen;
-                    dataOfBmp_src[i][j].rgbBlue = pRgb[mixIndex].rgbBlue;
-                    dataOfBmp_src[i][j].rgbReserved = pRgb[mixIndex].rgbReserved;
+                    dataOfBmp_src[i][j].red = pRgb[mixIndex].red;
+                    dataOfBmp_src[i][j].green = pRgb[mixIndex].green;
+                    dataOfBmp_src[i][j].blue = pRgb[mixIndex].blue;
+                    dataOfBmp_src[i][j].reserved = pRgb[mixIndex].reserved;
                 }
             }
         }
@@ -109,10 +153,10 @@ BMP *readBMP(char *strFile)
                         shortTemp = pColorData[k + 1];
                         shortTemp = shortTemp << 8;
                         mixIndex = pColorData[k] + shortTemp;
-                        dataOfBmp_src[i][j].rgbRed = pRgb[mixIndex].rgbRed;
-                        dataOfBmp_src[i][j].rgbGreen = pRgb[mixIndex].rgbGreen;
-                        dataOfBmp_src[i][j].rgbBlue = pRgb[mixIndex].rgbBlue;
-                        dataOfBmp_src[i][j].rgbReserved = pRgb[mixIndex].rgbReserved;
+                        dataOfBmp_src[i][j].red = pRgb[mixIndex].red;
+                        dataOfBmp_src[i][j].green = pRgb[mixIndex].green;
+                        dataOfBmp_src[i][j].blue = pRgb[mixIndex].blue;
+                        dataOfBmp_src[i][j].reserved = pRgb[mixIndex].reserved;
                     }
                 }
             }
@@ -130,10 +174,10 @@ BMP *readBMP(char *strFile)
                     int k = k0 + j * 2;
                     if (!bitInfoHead.biCompression) //555格式
                     {
-                        dataOfBmp_src[i][j].rgbBlue = pColorData[k] & 0x1F;
-                        dataOfBmp_src[i][j].rgbGreen = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
-                        dataOfBmp_src[i][j].rgbRed = (pColorData[k + 1] << 1) >> 3;
-                        dataOfBmp_src[i][j].rgbReserved = 0;
+                        dataOfBmp_src[i][j].blue = pColorData[k] & 0x1F;
+                        dataOfBmp_src[i][j].green = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
+                        dataOfBmp_src[i][j].red = (pColorData[k + 1] << 1) >> 3;
+                        dataOfBmp_src[i][j].reserved = 0;
                     }
                 }
             }
@@ -146,10 +190,10 @@ BMP *readBMP(char *strFile)
                 for (int j = 0; j < width; j++)
                 {
                     int k = k0 + (j * 3);
-                    dataOfBmp_src[i][j].rgbRed = pColorData[k + 2];
-                    dataOfBmp_src[i][j].rgbGreen = pColorData[k + 1];
-                    dataOfBmp_src[i][j].rgbBlue = pColorData[k];
-                    dataOfBmp_src[i][j].rgbReserved = 0;
+                    dataOfBmp_src[i][j].red = pColorData[k + 2];
+                    dataOfBmp_src[i][j].green = pColorData[k + 1];
+                    dataOfBmp_src[i][j].blue = pColorData[k];
+                    dataOfBmp_src[i][j].reserved = 0;
                 }
             }
         }
@@ -161,10 +205,10 @@ BMP *readBMP(char *strFile)
                 for (int j = 0; j < width; j++)
                 {
                     int k = k0 + (j * 4);
-                    dataOfBmp_src[i][j].rgbRed = pColorData[k + 2];
-                    dataOfBmp_src[i][j].rgbGreen = pColorData[k + 1];
-                    dataOfBmp_src[i][j].rgbBlue = pColorData[k];
-                    dataOfBmp_src[i][j].rgbReserved = pColorData[k + 3];
+                    dataOfBmp_src[i][j].red = pColorData[k + 2];
+                    dataOfBmp_src[i][j].green = pColorData[k + 1];
+                    dataOfBmp_src[i][j].blue = pColorData[k];
+                    dataOfBmp_src[i][j].reserved = pColorData[k + 3];
                 }
             }
         }
@@ -188,16 +232,15 @@ BMP *readBMP(char *strFile)
 
 void saveBMP(BMP *bmp, char *strFile)
 {
-    RGBQUAD **dataOfBmp = bmp->data;
-    int width = bmp->width;
-    int height = bmp->height;
-    BITMAPFILEHEADER bitHead;
-    BITMAPINFOHEADER bitInfoHead;
-    short biBitCount = 32;
-    FILE *pfile;
-    pfile = fopen(strFile, "wb");
+    FILE *pfile = fopen(strFile, "wb");
     if (pfile != NULL)
     {
+        RGB **dataOfBmp = bmp->data;
+        int width = bmp->width;
+        int height = bmp->height;
+        BITMAPFILEHEADER bitHead;
+        BITMAPINFOHEADER bitInfoHead;
+        short biBitCount = 32;
         bitHead.bfType = 0x4d42;
         bitHead.bfSize = 0;
         bitHead.bfReserved1 = 0;
@@ -242,45 +285,49 @@ void saveBMP(BMP *bmp, char *strFile)
                 fwrite(&tmp, 1, 1, pfile);
             }
         }
+        fclose(pfile);
+        printf("file %s save success.\n", strFile);
     }
-    fclose(pfile);
-    printf("file %s save success.\n", strFile);
+    else
+    {
+        printf("file %s can not save.\n", strFile);
+    }
 }
 
-BMP *initBMP(int height, int width, RGBQUAD defaultRGB)
+BMP *initBMP(int height, int width, RGB defaultRGB)
 {
-    BMP *bmpnew = (BMP *)malloc(sizeof(BMP));
-    RGBQUAD **data = (RGBQUAD **)malloc(sizeof(RGBQUAD *) * height);
+    BMP *bmpintnew = (BMP *)malloc(sizeof(BMP));
+    RGB **data = (RGB **)malloc(sizeof(RGB *) * height);
     for (int i = 0; i < height; i++)
     {
-        data[i] = (RGBQUAD *)malloc(sizeof(RGBQUAD) * width);
+        data[i] = (RGB *)malloc(sizeof(RGB) * width);
         for (int j = 0; j < width; j++)
         {
             data[i][j] = defaultRGB;
         }
     }
-    bmpnew->data = data;
-    bmpnew->height = height;
-    bmpnew->width = width;
-    return bmpnew;
+    bmpintnew->data = data;
+    bmpintnew->height = height;
+    bmpintnew->width = width;
+    return bmpintnew;
 }
 
-BMPINT *initBMPINT(int height, int width, RGBQUAD defaultRGB)
+BMPINT *initBMPINT(int height, int width, RGB defaultRGB)
 {
-    BMPINT *bmpnew = (BMPINT *)malloc(sizeof(BMPINT));
-    RGBQUADINT **data = (RGBQUADINT **)malloc(sizeof(RGBQUADINT *) * height);
+    BMPINT *bmpintnew = (BMPINT *)malloc(sizeof(BMPINT));
+    RGBINT **data = (RGBINT **)malloc(sizeof(RGBINT *) * height);
     for (int i = 0; i < height; i++)
     {
-        data[i] = (RGBQUADINT *)malloc(sizeof(RGBQUADINT) * width);
+        data[i] = (RGBINT *)malloc(sizeof(RGBINT) * width);
         for (int j = 0; j < width; j++)
         {
             data[i][j] = RGBtoRGBINT(defaultRGB);
         }
     }
-    bmpnew->data = data;
-    bmpnew->height = height;
-    bmpnew->width = width;
-    return bmpnew;
+    bmpintnew->data = data;
+    bmpintnew->height = height;
+    bmpintnew->width = width;
+    return bmpintnew;
 }
 
 void deleteBMP(BMP *bmp)
@@ -299,228 +346,129 @@ void deleteBMP(BMP *bmp)
     free(bmp);
 }
 
-void deleteBMPINT(BMPINT *bmp)
+void deleteBMPINT(BMPINT *bmpint)
 {
-    for (int i = 0; i < bmp->height; i++)
+    for (int i = 0; i < bmpint->height; i++)
     {
-        if (bmp->data[i])
+        if (bmpint->data[i])
         {
-            free(bmp->data[i]);
+            free(bmpint->data[i]);
         }
     }
-    if (bmp->data)
+    if (bmpint->data)
     {
-        free(bmp->data);
+        free(bmpint->data);
     }
-    free(bmp);
+    free(bmpint);
 }
 
-void showBmpHead(BITMAPFILEHEADER *pBmpHead)
+RGBINT RGBtoRGBINT(RGB rgb)
 {
-    printf("位图文件头:\n");
-    printf("文件类型:%x\n", pBmpHead->bfType);
-    printf("文件大小:%d\n", pBmpHead->bfSize);
-    printf("保留字:%d\n", pBmpHead->bfReserved1);
-    printf("保留字:%d\n", pBmpHead->bfReserved2);
-    printf("实际位图数据的偏移字节数:%d\n", pBmpHead->bfOffBits);
+    RGBINT rgbintnew;
+    rgbintnew.blue = rgb.blue;
+    rgbintnew.green = rgb.green;
+    rgbintnew.red = rgb.red;
+    rgbintnew.reserved = rgb.reserved;
+    return rgbintnew;
 }
 
-void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead)
+RGB RGBINTtoRGB(RGBINT rgbint)
 {
-    printf("位图信息头:\n");
-    printf("结构体的长度:%d\n", pBmpInforHead->biSize);
-    printf("位图宽:%d\n", pBmpInforHead->biWidth);
-    printf("位图高:%d\n", pBmpInforHead->biHeight);
-    printf("biPlanes平面数:%d\n", pBmpInforHead->biPlanes);
-    printf("biBitCount采用颜色位数:%d\n", pBmpInforHead->biBitCount);
-    printf("压缩方式:%d\n", pBmpInforHead->biCompression);
-    printf("biSizeImage实际位图数据占用的字节数:%d\n", pBmpInforHead->biSizeImage);
-    printf("X方向分辨率:%d\n", pBmpInforHead->biXPelsPerMeter);
-    printf("Y方向分辨率:%d\n", pBmpInforHead->biYPelsPerMeter);
-    printf("使用的颜色数:%d\n", pBmpInforHead->biClrUsed);
-    printf("重要颜色数:%d\n", pBmpInforHead->biClrImportant);
-}
-
-void showRgbQuan(RGBQUAD *pRGB, int num)
-{
-    for (int i = 0; i < num; i++)
+    RGB rgbnew;
+    if (rgbint.blue > 255)
     {
-        if (i % 5 == 0)
-        {
-            printf("\n");
-        }
-        printf("(%-3d,%-3d,%-3d)   ", (pRGB + i)->rgbRed, (pRGB + i)->rgbGreen, (pRGB + i)->rgbBlue);
+        rgbnew.blue = 255;
     }
-    printf("\n");
-}
-
-double contrast(char **dataOfBmp_gray, int width, int height, BOOL flag)
-{
-    int i, j;
-    double contrast_sum = 0;
-    int tmp0 = 2, tmp1 = 3, tmp2 = 4;
-    int num = 0;
-    if (flag)
+    else if (rgbint.blue < 0)
     {
-        tmp0 = 3;
-        tmp1 = 5;
-        tmp2 = 8;
-    }
-    num = 4 * tmp0 + ((width - 2) + (height - 2)) * 2 * tmp1 + ((width - 2) * (height - 2)) * tmp2;
-    for (i = 0; i < height; i++)
-    {
-        for (j = 0; j < width; j++)
-        {
-            if (i > 0)
-            {
-                contrast_sum += pow((dataOfBmp_gray[i - 1][j] - dataOfBmp_gray[i][j]), 2.0);
-                if (flag)
-                {
-                    if (j > 0)
-                    {
-                        contrast_sum += pow((dataOfBmp_gray[i - 1][j - 1] - dataOfBmp_gray[i][j]), 2.0);
-                    }
-                    if (j < width - 1)
-                    {
-                        contrast_sum += pow((dataOfBmp_gray[i - 1][j + 1] - dataOfBmp_gray[i][j]), 2.0);
-                    }
-                }
-            }
-            if (i < height - 1)
-            {
-                contrast_sum += pow((dataOfBmp_gray[i + 1][j] - dataOfBmp_gray[i][j]), 2.0);
-                if (flag)
-                {
-                    if (j > 0)
-                    {
-                        contrast_sum += pow((dataOfBmp_gray[i + 1][j - 1] - dataOfBmp_gray[i][j]), 2.0);
-                    }
-                    if (j < width - 1)
-                    {
-                        contrast_sum += pow((dataOfBmp_gray[i + 1][j + 1] - dataOfBmp_gray[i][j]), 2.0);
-                    }
-                }
-            }
-            if (j > 0)
-            {
-                contrast_sum += pow((dataOfBmp_gray[i][j - 1] - dataOfBmp_gray[i][j]), 2.0);
-            }
-            if (j < width - 1)
-            {
-                contrast_sum += pow((dataOfBmp_gray[i][j + 1] - dataOfBmp_gray[i][j]), 2.0);
-            }
-        }
-    }
-    return contrast_sum / num;
-}
-
-RGBQUADINT RGBtoRGBINT(RGBQUAD rgb)
-{
-    RGBQUADINT rgbnew;
-    rgbnew.rgbBlue = rgb.rgbBlue;
-    rgbnew.rgbGreen = rgb.rgbGreen;
-    rgbnew.rgbRed = rgb.rgbRed;
-    rgbnew.rgbReserved = rgb.rgbReserved;
-    return rgbnew;
-}
-
-RGBQUAD RGBINTtoRGB(RGBQUADINT rgb)
-{
-    RGBQUAD rgbnew;
-    if (rgb.rgbBlue > 255)
-    {
-        rgbnew.rgbBlue = 255;
-    }
-    else if (rgb.rgbBlue < 0)
-    {
-        rgbnew.rgbBlue = 0;
+        rgbnew.blue = 0;
     }
     else
     {
-        rgbnew.rgbBlue = rgb.rgbBlue;
+        rgbnew.blue = rgbint.blue;
     }
 
-    if (rgb.rgbGreen > 255)
+    if (rgbint.green > 255)
     {
-        rgbnew.rgbGreen = 255;
+        rgbnew.green = 255;
     }
-    else if (rgb.rgbGreen < 0)
+    else if (rgbint.green < 0)
     {
-        rgbnew.rgbGreen = 0;
+        rgbnew.green = 0;
     }
     else
     {
-        rgbnew.rgbGreen = rgb.rgbGreen;
+        rgbnew.green = rgbint.green;
     }
 
-    if (rgb.rgbRed > 255)
+    if (rgbint.red > 255)
     {
-        rgbnew.rgbRed = 255;
+        rgbnew.red = 255;
     }
-    else if (rgb.rgbRed < 0)
+    else if (rgbint.red < 0)
     {
-        rgbnew.rgbRed = 0;
+        rgbnew.red = 0;
     }
     else
     {
-        rgbnew.rgbRed = rgb.rgbRed;
+        rgbnew.red = rgbint.red;
     }
-    rgbnew.rgbReserved = rgb.rgbReserved;
+    rgbnew.reserved = rgbint.reserved;
     return rgbnew;
 }
 
-RGBQUAD RGBand(RGBQUAD rgb1, RGBQUAD rgb2)
+RGB RGBand(RGB rgb1, RGB rgb2)
 {
-    RGBQUAD rgbnew;
-    rgbnew.rgbBlue = rgb1.rgbBlue & rgb2.rgbBlue;
-    rgbnew.rgbGreen = rgb1.rgbGreen & rgb2.rgbGreen;
-    rgbnew.rgbRed = rgb1.rgbRed & rgb2.rgbRed;
-    rgbnew.rgbReserved = 0;
+    RGB rgbnew;
+    rgbnew.blue = rgb1.blue & rgb2.blue;
+    rgbnew.green = rgb1.green & rgb2.green;
+    rgbnew.red = rgb1.red & rgb2.red;
+    rgbnew.reserved = 0;
     return rgbnew;
 }
 
-RGBQUAD RGBor(RGBQUAD rgb1, RGBQUAD rgb2)
+RGB RGBor(RGB rgb1, RGB rgb2)
 {
-    RGBQUAD rgbnew;
-    rgbnew.rgbBlue = rgb1.rgbBlue | rgb2.rgbBlue;
-    rgbnew.rgbGreen = rgb1.rgbGreen | rgb2.rgbGreen;
-    rgbnew.rgbRed = rgb1.rgbRed | rgb2.rgbRed;
-    rgbnew.rgbReserved = 0;
+    RGB rgbnew;
+    rgbnew.blue = rgb1.blue | rgb2.blue;
+    rgbnew.green = rgb1.green | rgb2.green;
+    rgbnew.red = rgb1.red | rgb2.red;
+    rgbnew.reserved = 0;
     return rgbnew;
 }
 
-RGBQUAD RGBnot(RGBQUAD rgb)
+RGB RGBnot(RGB rgb)
 {
-    RGBQUAD rgbnew;
-    rgbnew.rgbBlue = ~rgb.rgbBlue;
-    rgbnew.rgbGreen = ~rgb.rgbGreen;
-    rgbnew.rgbRed = ~rgb.rgbRed;
-    rgbnew.rgbReserved = 0;
+    RGB rgbnew;
+    rgbnew.blue = ~rgb.blue;
+    rgbnew.green = ~rgb.green;
+    rgbnew.red = ~rgb.red;
+    rgbnew.reserved = 0;
     return rgbnew;
 }
 
-RGBQUAD RGBaverage(int n, RGBQUAD rgbs[])
+RGB RGBaverage(int n, RGB rgbs[])
 {
-    RGBQUAD rgbnew;
+    RGB rgbnew;
     int tempb = 0;
     int tempg = 0;
     int tempr = 0;
     for (int i = 0; i < n; i++)
     {
-        tempb += rgbs[i].rgbBlue;
-        tempg += rgbs[i].rgbGreen;
-        tempr += rgbs[i].rgbRed;
+        tempb += rgbs[i].blue;
+        tempg += rgbs[i].green;
+        tempr += rgbs[i].red;
     }
-    rgbnew.rgbBlue = (uchar)(tempb / n);
-    rgbnew.rgbGreen = (uchar)(tempg / n);
-    rgbnew.rgbRed = (uchar)(tempr / n);
-    rgbnew.rgbReserved = 0;
+    rgbnew.blue = (uchar)(tempb / n);
+    rgbnew.green = (uchar)(tempg / n);
+    rgbnew.red = (uchar)(tempr / n);
+    rgbnew.reserved = 0;
     return rgbnew;
 }
 
-RGBQUAD RGBQUADget(BMP *bmp, int i, int j, RGBQUAD defaultRGB, int *flag)
+RGB RGBget(BMP *bmp, int i, int j, RGB defaultRGB, int *flag)
 {
-    RGBQUAD rgbgot;
+    RGB rgbgot;
     if (i < 0 || i > bmp->height - 1 || j < 0 || j > bmp->width - 1)
     {
         rgbgot = defaultRGB;
@@ -536,156 +484,156 @@ RGBQUAD RGBQUADget(BMP *bmp, int i, int j, RGBQUAD defaultRGB, int *flag)
     return rgbgot;
 }
 
-RGBQUADINT RGBINTadd(RGBQUADINT rgb1, RGBQUADINT rgb2)
+RGBINT RGBINTadd(RGBINT rgbint1, RGBINT rgbint2)
 {
-    RGBQUADINT rgbnew;
-    rgbnew.rgbBlue = rgb1.rgbBlue + rgb2.rgbBlue;
-    rgbnew.rgbGreen = rgb1.rgbGreen + rgb2.rgbGreen;
-    rgbnew.rgbRed = rgb1.rgbRed + rgb2.rgbRed;
-    rgbnew.rgbReserved = 0;
-    return rgbnew;
+    RGBINT rgbintnew;
+    rgbintnew.blue = rgbint1.blue + rgbint2.blue;
+    rgbintnew.green = rgbint1.green + rgbint2.green;
+    rgbintnew.red = rgbint1.red + rgbint2.red;
+    rgbintnew.reserved = 0;
+    return rgbintnew;
 }
 
-RGBQUADINT RGBINTsub(RGBQUADINT rgb1, RGBQUADINT rgb2)
+RGBINT RGBINTsub(RGBINT rgbint1, RGBINT rgbint2)
 {
-    RGBQUADINT rgbnew;
-    rgbnew.rgbBlue = rgb1.rgbBlue - rgb2.rgbBlue;
-    rgbnew.rgbGreen = rgb1.rgbGreen - rgb2.rgbGreen;
-    rgbnew.rgbRed = rgb1.rgbRed - rgb2.rgbRed;
-    rgbnew.rgbReserved = 0;
-    return rgbnew;
+    RGBINT rgbintnew;
+    rgbintnew.blue = rgbint1.blue - rgbint2.blue;
+    rgbintnew.green = rgbint1.green - rgbint2.green;
+    rgbintnew.red = rgbint1.red - rgbint2.red;
+    rgbintnew.reserved = 0;
+    return rgbintnew;
 }
 
-RGBQUADINT RGBINTmultipy(RGBQUADINT rgb1, RGBQUADINT rgb2)
+RGBINT RGBINTmultipy(RGBINT rgbint1, RGBINT rgbint2)
 {
-    RGBQUADINT rgbnew;
-    rgbnew.rgbBlue = rgb1.rgbBlue * rgb2.rgbBlue;
-    rgbnew.rgbGreen = rgb1.rgbGreen * rgb2.rgbGreen;
-    rgbnew.rgbRed = rgb1.rgbRed * rgb2.rgbRed;
-    rgbnew.rgbReserved = 0;
-    return rgbnew;
+    RGBINT rgbintnew;
+    rgbintnew.blue = rgbint1.blue * rgbint2.blue;
+    rgbintnew.green = rgbint1.green * rgbint2.green;
+    rgbintnew.red = rgbint1.red * rgbint2.red;
+    rgbintnew.reserved = 0;
+    return rgbintnew;
 }
 
-RGBQUADINT RGBINTdivide(RGBQUADINT rgb1, RGBQUADINT rgb2, RGBQUAD defaultRGB)
+RGBINT RGBINTdivide(RGBINT rgbint1, RGBINT rgbint2, RGB defaultRGB)
 {
-    RGBQUADINT rgbnew;
-    if (rgb2.rgbBlue != 0)
+    RGBINT rgbintnew;
+    if (rgbint2.blue != 0)
     {
-        rgbnew.rgbBlue = rgb1.rgbBlue / rgb2.rgbBlue;
+        rgbintnew.blue = rgbint1.blue / rgbint2.blue;
     }
     else
     {
-        rgbnew.rgbBlue = defaultRGB.rgbBlue;
+        rgbintnew.blue = defaultRGB.blue;
     }
-    if (rgb2.rgbGreen != 0)
+    if (rgbint2.green != 0)
     {
-        rgbnew.rgbGreen = rgb1.rgbGreen / rgb2.rgbGreen;
+        rgbintnew.green = rgbint1.green / rgbint2.green;
     }
     else
     {
-        rgbnew.rgbGreen = defaultRGB.rgbGreen;
+        rgbintnew.green = defaultRGB.green;
     }
-    if (rgb2.rgbRed != 0)
+    if (rgbint2.red != 0)
     {
-        rgbnew.rgbRed = rgb1.rgbRed / rgb2.rgbRed;
+        rgbintnew.red = rgbint1.red / rgbint2.red;
     }
     else
     {
-        rgbnew.rgbRed = defaultRGB.rgbRed;
+        rgbintnew.red = defaultRGB.red;
     }
-    rgbnew.rgbReserved = 0;
-    return rgbnew;
+    rgbintnew.reserved = 0;
+    return rgbintnew;
 }
 
-RGBQUADINT RGBINTaddarray(int n, RGBQUADINT rgbs[])
+RGBINT RGBINTaddarray(int n, RGBINT rgbints[])
 {
-    RGBQUADINT rgbnew;
-    rgbnew.rgbBlue = 0;
-    rgbnew.rgbGreen = 0;
-    rgbnew.rgbRed = 0;
-    rgbnew.rgbReserved = 0;
+    RGBINT rgbintnew;
+    rgbintnew.blue = 0;
+    rgbintnew.green = 0;
+    rgbintnew.red = 0;
+    rgbintnew.reserved = 0;
     for (int i = 0; i < n; i++)
     {
-        rgbnew.rgbBlue += rgbs[i].rgbBlue;
-        rgbnew.rgbGreen += rgbs[i].rgbGreen;
-        rgbnew.rgbRed += rgbs[i].rgbRed;
+        rgbintnew.blue += rgbints[i].blue;
+        rgbintnew.green += rgbints[i].green;
+        rgbintnew.red += rgbints[i].red;
     }
-    return rgbnew;
+    return rgbintnew;
 }
 
-RGBQUADINT RGBQUADINTcoefficient(double n, RGBQUADINT rgb)
+RGBINT RGBINTcoefficient(double n, RGBINT rgbint)
 {
-    RGBQUADINT rgbnew;
-    rgbnew.rgbBlue = (int)(n * rgb.rgbBlue);
-    rgbnew.rgbGreen = (int)(n * rgb.rgbGreen);
-    rgbnew.rgbRed = (int)(n * rgb.rgbRed);
-    rgbnew.rgbReserved = 0;
-    return rgbnew;
+    RGBINT rgbintnew;
+    rgbintnew.blue = (int)(n * rgbint.blue);
+    rgbintnew.green = (int)(n * rgbint.green);
+    rgbintnew.red = (int)(n * rgbint.red);
+    rgbintnew.reserved = 0;
+    return rgbintnew;
 }
 
-RGBQUADINT RGBcoefficentaddmodel(BMPINT *bmp, int a, int b, double model[][3])
+RGBINT RGBcoefficentaddmodel(BMPINT *bmpint, int a, int b, double model[][3])
 {
-    RGBQUADINT rgbsquare[3][3];
+    RGBINT rgbintsquare[3][3];
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 3; j++)
         {
-            rgbsquare[i][j] = RGBQUADINTcoefficient(model[i][j], bmp->data[a - 1 + i][b - 1 + j]);
+            rgbintsquare[i][j] = RGBINTcoefficient(model[i][j], bmpint->data[a - 1 + i][b - 1 + j]);
         }
     }
-    RGBQUADINT rgbtmp[9];
+    RGBINT rgbinttmp[9];
     int index = 0;
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 3; j++)
         {
-            rgbtmp[index] = rgbsquare[i][j];
+            rgbinttmp[index] = rgbintsquare[i][j];
             index += 1;
         }
     }
-    RGBQUADINT rgbnew = RGBINTaddarray(9, rgbtmp);
-    return rgbnew;
+    RGBINT rgbintnew = RGBINTaddarray(9, rgbinttmp);
+    return rgbintnew;
 }
 
 BMPINT *BMPtoBMPINT(BMP *bmp)
 {
-    BMPINT *bmpnew = initBMPINT(bmp->height, bmp->width, BLACK);
+    BMPINT *bmpintnew = initBMPINT(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpnew->data[i][j] = RGBtoRGBINT(bmp->data[i][j]);
+            bmpintnew->data[i][j] = RGBtoRGBINT(bmp->data[i][j]);
         }
     }
     deleteBMP(bmp);
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMP *BMPINTtoBMP(BMPINT *bmp)
+BMP *BMPINTtoBMP(BMPINT *bmpint)
 {
-    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
-    for (int i = 0; i < bmp->height; i++)
+    BMP *bmpnew = initBMP(bmpint->height, bmpint->width, BLACK);
+    for (int i = 0; i < bmpint->height; i++)
     {
-        for (int j = 0; j < bmp->width; j++)
+        for (int j = 0; j < bmpint->width; j++)
         {
-            bmpnew->data[i][j] = RGBINTtoRGB(bmp->data[i][j]);
+            bmpnew->data[i][j] = RGBINTtoRGB(bmpint->data[i][j]);
         }
     }
-    deleteBMPINT(bmp);
+    deleteBMPINT(bmpint);
     return bmpnew;
 }
 
 BMP *BMPcopy(BMP *bmp)
 {
-    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpnew->data[i][j] = bmp->data[i][j];
+            bmpintnew->data[i][j] = bmp->data[i][j];
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPand(BMP *bmpa, BMP *bmpb)
@@ -694,15 +642,15 @@ BMP *BMPand(BMP *bmpa, BMP *bmpb)
     {
         printf("image size not equal\n");
     }
-    BMP *bmpnew = initBMP(bmpa->height, bmpa->width, BLACK);
+    BMP *bmpintnew = initBMP(bmpa->height, bmpa->width, BLACK);
     for (int i = 0; i < bmpa->height; i++)
     {
         for (int j = 0; j < bmpa->width; j++)
         {
-            bmpnew->data[i][j] = RGBand(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpintnew->data[i][j] = RGBand(bmpa->data[i][j], bmpb->data[i][j]);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPor(BMP *bmpa, BMP *bmpb)
@@ -711,62 +659,62 @@ BMP *BMPor(BMP *bmpa, BMP *bmpb)
     {
         printf("image size not equal\n");
     }
-    BMP *bmpnew = initBMP(bmpa->height, bmpa->width, BLACK);
+    BMP *bmpintnew = initBMP(bmpa->height, bmpa->width, BLACK);
     for (int i = 0; i < bmpa->height; i++)
     {
         for (int j = 0; j < bmpa->width; j++)
         {
-            bmpnew->data[i][j] = RGBor(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpintnew->data[i][j] = RGBor(bmpa->data[i][j], bmpb->data[i][j]);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPnot(BMP *bmp)
 {
-    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpnew->data[i][j] = RGBnot(bmp->data[i][j]);
+            bmpintnew->data[i][j] = RGBnot(bmp->data[i][j]);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPheightenlarge(BMP *bmp, float heightcof)
 {
     int newheight = (int)(heightcof * bmp->height);
-    BMP *bmpnew = initBMP(newheight, bmp->width, GRAY127);
+    BMP *bmpintnew = initBMP(newheight, bmp->width, GRAY127);
     for (int j = 0; j < bmp->width; j++)
     {
         for (int i = 0; i < bmp->height; i++)
         {
             for (int k = (int)(i * heightcof); k < (int)((i + 1) * heightcof); k++)
             {
-                bmpnew->data[k][j] = bmp->data[i][j];
+                bmpintnew->data[k][j] = bmp->data[i][j];
             }
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPwidthenlarge(BMP *bmp, float widthcof)
 {
     int newwidth = (int)(widthcof * bmp->width);
-    BMP *bmpnew = initBMP(bmp->height, newwidth, GRAY127);
+    BMP *bmpintnew = initBMP(bmp->height, newwidth, GRAY127);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
             for (int k = (int)(j * widthcof); k < (int)((j + 1) * widthcof); k++)
             {
-                bmpnew->data[i][k] = bmp->data[i][j];
+                bmpintnew->data[i][k] = bmp->data[i][j];
             }
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPenlarge(BMP *bmp, float heightcof, float widthcof)
@@ -782,7 +730,7 @@ BMP *BMPshrink(BMP *bmp, float heightcof, float widthcof)
     int newheight, newwidth;
     newheight = (int)(heightcof * bmp->height);
     newwidth = (int)(widthcof * bmp->width);
-    BMP *bmpnew = initBMP(newheight, newwidth, BLACK);
+    BMP *bmpintnew = initBMP(newheight, newwidth, BLACK);
     for (int i = 0; i < newheight; i++)
     {
         for (int j = 0; j < newwidth; j++)
@@ -797,10 +745,10 @@ BMP *BMPshrink(BMP *bmp, float heightcof, float widthcof)
             {
                 jnew = bmp->width - 1;
             }
-            bmpnew->data[i][j] = bmp->data[inew][jnew];
+            bmpintnew->data[i][j] = bmp->data[inew][jnew];
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPcut(BMP *bmp, int heightstart, int heightstop, int widthstart, int widthstop)
@@ -808,20 +756,20 @@ BMP *BMPcut(BMP *bmp, int heightstart, int heightstop, int widthstart, int width
     int newheight, newwidth;
     newheight = heightstop - heightstart;
     newwidth = widthstop - widthstart;
-    BMP *bmpnew = initBMP(newheight, newwidth, BLACK);
+    BMP *bmpintnew = initBMP(newheight, newwidth, BLACK);
     for (int i = 0; i < newheight; i++)
     {
         for (int j = 0; j < newwidth; j++)
         {
-            bmpnew->data[i][j] = bmp->data[i + heightstart][j + widthstart];
+            bmpintnew->data[i][j] = bmp->data[i + heightstart][j + widthstart];
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widthstart, RGBQUAD defaultRGB)
+BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widthstart, RGB defaultRGB)
 {
-    BMP *bmpnew = initBMP(largeheight, largewidth, defaultRGB);
+    BMP *bmpintnew = initBMP(largeheight, largewidth, defaultRGB);
     int tempi, tempj;
     for (int i = 0; i < bmp->height; i++)
     {
@@ -829,124 +777,124 @@ BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widt
         {
             if (i + heightstart < largeheight && j + widthstart < largewidth)
             {
-                bmpnew->data[i + heightstart][j + widthstart] = bmp->data[i][j];
+                bmpintnew->data[i + heightstart][j + widthstart] = bmp->data[i][j];
             }
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPtogray(BMP *bmp)
 {
-    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
     double gray;
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            gray = 0.299 * bmp->data[i][j].rgbRed + 0.587 * bmp->data[i][j].rgbGreen + 0.114 * bmp->data[i][j].rgbBlue;
-            bmpnew->data[i][j].rgbRed = (char)gray;
-            bmpnew->data[i][j].rgbGreen = (char)gray;
-            bmpnew->data[i][j].rgbBlue = (char)gray;
+            gray = 0.299 * bmp->data[i][j].red + 0.587 * bmp->data[i][j].green + 0.114 * bmp->data[i][j].blue;
+            bmpintnew->data[i][j].red = (char)gray;
+            bmpintnew->data[i][j].green = (char)gray;
+            bmpintnew->data[i][j].blue = (char)gray;
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 BMP *BMPreversecolor(BMP *bmp)
 {
-    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpnew->data[i][j].rgbRed = 255 - bmp->data[i][j].rgbRed;
-            bmpnew->data[i][j].rgbGreen = 255 - bmp->data[i][j].rgbGreen;
-            bmpnew->data[i][j].rgbBlue = 255 - bmp->data[i][j].rgbBlue;
+            bmpintnew->data[i][j].red = 255 - bmp->data[i][j].red;
+            bmpintnew->data[i][j].green = 255 - bmp->data[i][j].green;
+            bmpintnew->data[i][j].blue = 255 - bmp->data[i][j].blue;
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMPINT *BMPINTcopy(BMPINT *bmp)
+BMPINT *BMPINTcopy(BMPINT *bmpint)
 {
-    BMPINT *bmpnew = initBMPINT(bmp->height, bmp->width, BLACK);
-    for (int i = 0; i < bmp->height; i++)
+    BMPINT *bmpintnew = initBMPINT(bmpint->height, bmpint->width, BLACK);
+    for (int i = 0; i < bmpint->height; i++)
     {
-        for (int j = 0; j < bmp->width; j++)
+        for (int j = 0; j < bmpint->width; j++)
         {
-            bmpnew->data[i][j] = bmp->data[i][j];
+            bmpintnew->data[i][j] = bmpint->data[i][j];
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMPINT *BMPINTadd(BMPINT *bmpa, BMPINT *bmpb)
+BMPINT *BMPINTadd(BMPINT *bmpinta, BMPINT *bmpintb)
 {
-    if (bmpa->height != bmpb->height || bmpa->width != bmpb->width)
+    if (bmpinta->height != bmpintb->height || bmpinta->width != bmpintb->width)
     {
         printf("image size not equal\n");
     }
-    BMPINT *bmpnew = initBMPINT(bmpa->height, bmpa->width, BLACK);
-    for (int i = 0; i < bmpa->height; i++)
+    BMPINT *bmpintnew = initBMPINT(bmpinta->height, bmpinta->width, BLACK);
+    for (int i = 0; i < bmpinta->height; i++)
     {
-        for (int j = 0; j < bmpa->width; j++)
+        for (int j = 0; j < bmpinta->width; j++)
         {
-            bmpnew->data[i][j] = RGBINTadd(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpintnew->data[i][j] = RGBINTadd(bmpinta->data[i][j], bmpintb->data[i][j]);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMPINT *BMPINTsub(BMPINT *bmpa, BMPINT *bmpb)
+BMPINT *BMPINTsub(BMPINT *bmpinta, BMPINT *bmpintb)
 {
-    if (bmpa->height != bmpb->height || bmpa->width != bmpb->width)
+    if (bmpinta->height != bmpintb->height || bmpinta->width != bmpintb->width)
     {
         printf("image size not equal\n");
     }
-    BMPINT *bmpnew = initBMPINT(bmpa->height, bmpa->width, BLACK);
-    for (int i = 0; i < bmpa->height; i++)
+    BMPINT *bmpintnew = initBMPINT(bmpinta->height, bmpinta->width, BLACK);
+    for (int i = 0; i < bmpinta->height; i++)
     {
-        for (int j = 0; j < bmpa->width; j++)
+        for (int j = 0; j < bmpinta->width; j++)
         {
-            bmpnew->data[i][j] = RGBINTsub(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpintnew->data[i][j] = RGBINTsub(bmpinta->data[i][j], bmpintb->data[i][j]);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMPINT *BMPINTmultiply(BMPINT *bmpa, BMPINT *bmpb)
+BMPINT *BMPINTmultiply(BMPINT *bmpinta, BMPINT *bmpintb)
 {
-    if (bmpa->height != bmpb->height || bmpa->width != bmpb->width)
+    if (bmpinta->height != bmpintb->height || bmpinta->width != bmpintb->width)
     {
         printf("image size not equal\n");
     }
-    BMPINT *bmpnew = initBMPINT(bmpa->height, bmpa->width, BLACK);
-    for (int i = 0; i < bmpa->height; i++)
+    BMPINT *bmpintnew = initBMPINT(bmpinta->height, bmpinta->width, BLACK);
+    for (int i = 0; i < bmpinta->height; i++)
     {
-        for (int j = 0; j < bmpa->width; j++)
+        for (int j = 0; j < bmpinta->width; j++)
         {
-            bmpnew->data[i][j] = RGBINTmultipy(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpintnew->data[i][j] = RGBINTmultipy(bmpinta->data[i][j], bmpintb->data[i][j]);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
-BMPINT *BMPINTdivide(BMPINT *bmpa, BMPINT *bmpb, RGBQUAD defaultRGB)
+BMPINT *BMPINTdivide(BMPINT *bmpinta, BMPINT *bmpintb, RGB defaultRGB)
 {
-    if (bmpa->height != bmpb->height || bmpa->width != bmpb->width)
+    if (bmpinta->height != bmpintb->height || bmpinta->width != bmpintb->width)
     {
         printf("image size not equal\n");
     }
-    BMPINT *bmpnew = initBMPINT(bmpa->height, bmpa->width, BLACK);
-    for (int i = 0; i < bmpa->height; i++)
+    BMPINT *bmpintnew = initBMPINT(bmpinta->height, bmpinta->width, BLACK);
+    for (int i = 0; i < bmpinta->height; i++)
     {
-        for (int j = 0; j < bmpa->width; j++)
+        for (int j = 0; j < bmpinta->width; j++)
         {
-            bmpnew->data[i][j] = RGBINTdivide(bmpa->data[i][j], bmpb->data[i][j], defaultRGB);
+            bmpintnew->data[i][j] = RGBINTdivide(bmpinta->data[i][j], bmpintb->data[i][j], defaultRGB);
         }
     }
-    return bmpnew;
+    return bmpintnew;
 }
 
 char **initcmodel(int height, int width, int initial)
@@ -1004,6 +952,66 @@ void deletedmodel(double **model, int height, int width)
     }
 }
 
+double contrast(BMP *bmpgray, BOOL flag)
+{
+    int height = bmpgray->height;
+    int width = bmpgray->width;
+    double contrast_sum = 0;
+    int tmp0 = 2, tmp1 = 3, tmp2 = 4;
+    if (flag)
+    {
+        tmp0 = 3;
+        tmp1 = 5;
+        tmp2 = 8;
+    }
+    int num = 4 * tmp0 + ((width - 2) + (height - 2)) * 2 * tmp1 + ((width - 2) * (height - 2)) * tmp2;
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (i > 0)
+            {
+                contrast_sum += pow((bmpgray->data[i - 1][j].blue - bmpgray->data[i][j].blue), 2.0);
+                if (flag)
+                {
+                    if (j > 0)
+                    {
+                        contrast_sum += pow((bmpgray->data[i - 1][j - 1].blue - bmpgray->data[i][j].blue), 2.0);
+                    }
+                    if (j < width - 1)
+                    {
+                        contrast_sum += pow((bmpgray->data[i - 1][j + 1].blue - bmpgray->data[i][j].blue), 2.0);
+                    }
+                }
+            }
+            if (i < height - 1)
+            {
+                contrast_sum += pow((bmpgray->data[i + 1][j].blue - bmpgray->data[i][j].blue), 2.0);
+                if (flag)
+                {
+                    if (j > 0)
+                    {
+                        contrast_sum += pow((bmpgray->data[i + 1][j - 1].blue - bmpgray->data[i][j].blue), 2.0);
+                    }
+                    if (j < width - 1)
+                    {
+                        contrast_sum += pow((bmpgray->data[i + 1][j + 1].blue - bmpgray->data[i][j].blue), 2.0);
+                    }
+                }
+            }
+            if (j > 0)
+            {
+                contrast_sum += pow((bmpgray->data[i][j - 1].blue - bmpgray->data[i][j].blue), 2.0);
+            }
+            if (j < width - 1)
+            {
+                contrast_sum += pow((bmpgray->data[i][j + 1].blue - bmpgray->data[i][j].blue), 2.0);
+            }
+        }
+    }
+    return contrast_sum / num;
+}
+
 BMP *averagefilter(BMP *bmp, char **model)
 {
     BMP *dstbmp = BMPcopy(bmp);
@@ -1013,15 +1021,15 @@ BMP *averagefilter(BMP *bmp, char **model)
         {
             if (model[i][j] == 1)
             {
-                RGBQUAD collects[8] = {bmp->data[i - 1][j - 1],
-                                       bmp->data[i - 1][j],
-                                       bmp->data[i - 1][j + 1],
-                                       bmp->data[i][j - 1],
-                                       bmp->data[i][j + 1],
-                                       bmp->data[i + 1][j - 1],
-                                       bmp->data[i + 1][j],
-                                       bmp->data[i + 1][j + 1]};
-                RGBQUAD average = RGBaverage(8, collects);
+                RGB collects[8] = {bmp->data[i - 1][j - 1],
+                                   bmp->data[i - 1][j],
+                                   bmp->data[i - 1][j + 1],
+                                   bmp->data[i][j - 1],
+                                   bmp->data[i][j + 1],
+                                   bmp->data[i + 1][j - 1],
+                                   bmp->data[i + 1][j],
+                                   bmp->data[i + 1][j + 1]};
+                RGB average = RGBaverage(8, collects);
                 dstbmp->data[i][j] = average;
             }
         }
@@ -1029,50 +1037,89 @@ BMP *averagefilter(BMP *bmp, char **model)
     return dstbmp;
 }
 
-BMP *sharpen(BMP *bmp, double model[][3])
+BMP *sharpen(BMP *bmpgray, double model[][3])
 {
-    BMP *bmpgray = BMPtogray(bmp);
-    BMPINT *dstbmp = BMPtoBMPINT(bmpgray);
-    BMPINT *bmpunchanged = BMPINTcopy(dstbmp);
+    BMPINT *dstbmpint = BMPtoBMPINT(bmpgray);
+    BMPINT *bmpintbak = BMPINTcopy(dstbmpint);
     int minblue = 0;
-    for (int i = 1; i < bmp->height - 1; i++)
+    for (int i = 1; i < bmpgray->height - 1; i++)
     {
-        for (int j = 1; j < bmp->width - 1; j++)
+        for (int j = 1; j < bmpgray->width - 1; j++)
         {
-            dstbmp->data[i][j] = RGBcoefficentaddmodel(bmpunchanged, i, j, model);
-            if (dstbmp->data[i][j].rgbBlue < minblue)
+            dstbmpint->data[i][j] = RGBcoefficentaddmodel(bmpintbak, i, j, model);
+            if (dstbmpint->data[i][j].blue < minblue)
             {
-                minblue = dstbmp->data[i][j].rgbBlue;
+                minblue = dstbmpint->data[i][j].blue;
             }
         }
     }
-    deleteBMPINT(bmpunchanged);
+    deleteBMPINT(bmpintbak);
     if (minblue < 0)
     {
-        for (int i = 0; i < bmp->height; i++)
+        for (int i = 0; i < bmpgray->height; i++)
         {
-            for (int j = 0; j < bmp->width; j++)
+            for (int j = 0; j < bmpgray->width; j++)
             {
-                dstbmp->data[i][j].rgbBlue -= minblue;
-                dstbmp->data[i][j].rgbRed = dstbmp->data[i][j].rgbBlue;
-                dstbmp->data[i][j].rgbGreen = dstbmp->data[i][j].rgbBlue;
+                dstbmpint->data[i][j].blue -= minblue;
+                dstbmpint->data[i][j].red = dstbmpint->data[i][j].blue;
+                dstbmpint->data[i][j].green = dstbmpint->data[i][j].blue;
             }
         }
     }
-    bmpgray = BMPINTtoBMP(dstbmp);
-    return bmpgray;
-}
-
-BMP *horizonsharpen(BMP *bmp)
-{
-    double model[][3] = {{1, 2, 1}, {0, 0, 0}, {-1, -2, -1}};
-    BMP *bmpnew = sharpen(bmp, model);
+    BMP *bmpnew = BMPINTtoBMP(dstbmpint);
     return bmpnew;
 }
 
-BMP *verticalsharpen(BMP *bmp)
+BMP *horizonsharpen(BMP *bmpgray)
+{
+    double model[][3] = {{1, 2, 1}, {0, 0, 0}, {-1, -2, -1}};
+    BMP *bmpnew = sharpen(bmpgray, model);
+    return bmpnew;
+}
+
+BMP *verticalsharpen(BMP *bmpgray)
 {
     double model[][3] = {{1, 0, -1}, {2, 0, -2}, {1, 0, -1}};
-    BMP *bmpnew = sharpen(bmp, model);
+    BMP *bmpnew = sharpen(bmpgray, model);
+    return bmpnew;
+}
+
+void graylevelcount(BMP *bmpgray, int *graylevelnum)
+{
+    memset(graylevelnum, 0, sizeof(int) * 256);
+    for (int i = 0; i < bmpgray->height; i++)
+    {
+        for (int j = 0; j < bmpgray->width; j++)
+        {
+            graylevelnum[bmpgray->data[i][j].blue]++;
+        }
+    }
+}
+
+BMP *pparameterbinaryzation(BMP *bmpgray, int *levelnum, double p)
+{
+    int num = (int)(p * bmpgray->height * bmpgray->width);
+    int count = 0;
+    int level = 0;
+    while (count < num && level < 256)
+    {
+        count += levelnum[level];
+        level++;
+    }
+    BMP *bmpnew = initBMP(bmpgray->height, bmpgray->width, GRAY127);
+    for (int i = 0; i < bmpgray->height; i++)
+    {
+        for (int j = 0; j < bmpgray->width; j++)
+        {
+            if (bmpgray->data[i][j].blue < level)
+            {
+                bmpnew->data[i][j] = BLACK;
+            }
+            else
+            {
+                bmpnew->data[i][j] = WHITE;
+            }
+        }
+    }
     return bmpnew;
 }

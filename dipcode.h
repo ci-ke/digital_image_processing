@@ -2,138 +2,246 @@
 #define _DIPCODE_H
 
 #define WIDTHcharS(bits) (((bits) + 31) / 32 * 4)
-#define SHOW 1
+#define SHOWHEADER 0
 
 typedef unsigned char uchar;
 typedef char BOOL;
+typedef short TWOBYTES;
+typedef int FOURBYTES;
 
-#pragma pack(1)
+#pragma pack(1) //以下三个结构体需要单字节对齐
 
 //文件头
 typedef struct _BITMAPFILEHEADER
 {
-	short bfType;
-	long bfSize;	   //文件大小
-	short bfReserved1; //保留字，不考虑
-	short bfReserved2; //保留字，同上
-	long bfOffBits;	//实际位图数据的偏移字节数，即前三个部分长度之和
+	TWOBYTES bfType;
+	FOURBYTES bfSize;	 //文件大小
+	TWOBYTES bfReserved1; //保留字，不考虑
+	TWOBYTES bfReserved2; //保留字，同上
+	FOURBYTES bfOffBits;  //实际位图数据的偏移字节数，即前三个部分长度之和
 } BITMAPFILEHEADER;
 
 //信息头
 typedef struct _BITMAPINFOHEADER
 {
-	long biSize;		  //指定此结构体的长度，为40
-	long biWidth;		  //位图宽
-	long biHeight;		  //位图高
-	short biPlanes;		  //平面数，为1
-	short biBitCount;	 //采用颜色位数，可以是1，2，4，8，16，24，新的可以是32
-	long biCompression;   //压缩方式，可以是0，1，2，其中0表示不压缩
-	long biSizeImage;	 //实际位图数据占用的字节数
-	long biXPelsPerMeter; //X方向分辨率
-	long biYPelsPerMeter; //Y方向分辨率
-	long biClrUsed;		  //使用的颜色数，如果为0，则表示默认值(2^颜色位数)
-	long biClrImportant;  //重要颜色数，如果为0，则表示所有颜色都是重要的
+	FOURBYTES biSize;		   //指定此结构体的长度，为40
+	FOURBYTES biWidth;		   //位图宽
+	FOURBYTES biHeight;		   //位图高
+	TWOBYTES biPlanes;		   //平面数，为1
+	TWOBYTES biBitCount;	   //采用颜色位数，可以是1，2，4，8，16，24，新的可以是32
+	FOURBYTES biCompression;   //压缩方式，可以是0，1，2，其中0表示不压缩
+	FOURBYTES biSizeImage;	 //实际位图数据占用的字节数
+	FOURBYTES biXPelsPerMeter; //X方向分辨率
+	FOURBYTES biYPelsPerMeter; //Y方向分辨率
+	FOURBYTES biClrUsed;	   //使用的颜色数，如果为0，则表示默认值(2^颜色位数)
+	FOURBYTES biClrImportant;  //重要颜色数，如果为0，则表示所有颜色都是重要的
 } BITMAPINFOHEADER;
-
-//调色板Palette，当然，这里是对那些需要调色板的位图文件而言的。24位和32位是不需要调色板的。（似乎是调色板结构体个数等于使用的颜色数。）
-typedef struct _RGBQUAD
-{
-	uchar rgbBlue;	//该颜色的蓝色分量
-	uchar rgbGreen;   //该颜色的绿色分量
-	uchar rgbRed;	 //该颜色的红色分量
-	char rgbReserved; //保留值
-} RGBQUAD;
 
 #pragma pack()
 
-typedef struct _RGBQUADINT
+//调色板Palette，当然，这里是对那些需要调色板的位图文件而言的。24位和32位是不需要调色板的。（似乎是调色板结构体个数等于使用的颜色数。）
+typedef struct _RGB
 {
-	int rgbBlue;
-	int rgbGreen;
-	int rgbRed;
-	int rgbReserved;
-} RGBQUADINT;
+	uchar blue;	//该颜色的蓝色分量
+	uchar green;   //该颜色的绿色分量
+	uchar red;	 //该颜色的红色分量
+	char reserved; //保留值
+} RGB;
 
+//RGB的扩展，只用于计算
+typedef struct _RGBINT
+{
+	int blue;
+	int green;
+	int red;
+	int reserved;
+} RGBINT;
+
+//bmp文件
 typedef struct _BMP
 {
-	RGBQUAD **data;
+	RGB **data;
 	int width;
 	int height;
 } BMP;
 
+//使用扩展RGB的bmp文件
 typedef struct _BMPINT
 {
-	RGBQUADINT **data;
+	RGBINT **data;
 	int width;
 	int height;
 } BMPINT;
 
+//----------------------------------------------------------------------------------------------------
+
+//显示bmp文件文件头
+void showBmpHead(BITMAPFILEHEADER *pBmpHead);
+
+//显示bmp文件信息头
+void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead);
+
+//显示颜色板
+void showRgbQuan(RGB *pRGB, int num);
+
+//----------------------------------------------------------------------------------------------------
+
+//从文件读取BMP
 BMP *readBMP(char *strFile);
+
+//保存BMP到文件
 void saveBMP(BMP *bmp, char *strFile);
 
-BMP *initBMP(int height, int width, RGBQUAD defaultRGB);
-BMPINT *initBMPINT(int height, int width, RGBQUAD defaultRGB);
+//输入高宽与默认颜色，获得指向一个BMP动态区域的指针
+BMP *initBMP(int height, int width, RGB defaultRGB);
 
+//输入高宽与默认颜色，获得指向一个BMPINT动态区域的指针
+BMPINT *initBMPINT(int height, int width, RGB defaultRGB);
+
+//释放BMP动态区域
 void deleteBMP(BMP *bmp);
+
+//释放BMPINT动态区域
 void deleteBMPINT(BMPINT *bmp);
 
-void showBmpHead(BITMAPFILEHEADER *pBmpHead);
-void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead);
-void showRgbQuan(RGBQUAD *pRGB, int num);
-/*
-函数功能：灰度图象四近邻（flag=0）或八近邻（flag=1）对比度
-输入参数：char* dataOfBmp_gray——灰度图像所有像素（以行为序）对应的灰度值 int width,int height——原图像和输出图像的宽度和高度（以像素为单位） BOOL flag——四近邻或八近邻标志，flag=0为四近邻，flag=1为八近邻
-输出值：四近邻（flag=0）或八近邻（flag=1）对比度
-*/
-double contrast(char **dataOfBmp_gray, int width, int height, BOOL flag);
+//----------------------------------------------------------------------------------------------------
 
-RGBQUADINT RGBtoRGBINT(RGBQUAD rgb);
-RGBQUAD RGBINTtoRGB(RGBQUADINT rgb);
+//获得RGB色块转换的RGBINT色块
+RGBINT RGBtoRGBINT(RGB rgb);
 
-RGBQUAD RGBand(RGBQUAD rgb1, RGBQUAD rgb2);
-RGBQUAD RGBor(RGBQUAD rgb1, RGBQUAD rgb2);
-RGBQUAD RGBnot(RGBQUAD rgb);
-RGBQUAD RGBaverage(int n, RGBQUAD rgbs[]);
-RGBQUAD RGBQUADget(BMP *bmp, int i, int j, RGBQUAD defaultRGB, int *flag);
+//获得RGBINT色块转换的RGB色块
+RGB RGBINTtoRGB(RGBINT rgbint);
 
-RGBQUADINT RGBINTadd(RGBQUADINT rgb1, RGBQUADINT rgb2);
-RGBQUADINT RGBINTsub(RGBQUADINT rgb1, RGBQUADINT rgb2);
-RGBQUADINT RGBINTmultipy(RGBQUADINT rgb1, RGBQUADINT rgb2);
-RGBQUADINT RGBINTdivide(RGBQUADINT rgb1, RGBQUADINT rgb2, RGBQUAD defaultRGB);
-RGBQUADINT RGBINTcoefficient(double n, RGBQUADINT rgb);
-RGBQUADINT RGBINTaddarray(int n, RGBQUADINT rgbs[]);
-RGBQUADINT RGBcoefficentaddmodel(BMPINT *bmp, int i, int j, double model[][3]);
+//两个RGB色块相与
+RGB RGBand(RGB rgb1, RGB rgb2);
 
+//两个RGB色块相或
+RGB RGBor(RGB rgb1, RGB rgb2);
+
+//RGB色块取非
+RGB RGBnot(RGB rgb);
+
+//n个RGB色块的平均值
+RGB RGBaverage(int n, RGB rgbs[]);
+
+//防越界读取BMP中的data，flag记录越界次数
+RGB RGBget(BMP *bmp, int i, int j, RGB defaultRGB, int *flag);
+
+//两个RGBINT色块相加
+RGBINT RGBINTadd(RGBINT rgbint1, RGBINT rgbint2);
+
+//两个RGBINT色块相减
+RGBINT RGBINTsub(RGBINT rgbint1, RGBINT rgbint2);
+
+//两个RGBINT色块相乘
+RGBINT RGBINTmultipy(RGBINT rgbint1, RGBINT rgbint2);
+
+//两个RGBINT色块相除，如果除零，则取默认颜色
+RGBINT RGBINTdivide(RGBINT rgbint1, RGBINT rgbint2, RGB defaultRGB);
+
+//RGB色块乘以一个系数n
+RGBINT RGBINTcoefficient(double n, RGBINT rgbint);
+
+//一组RGBINT相加
+RGBINT RGBINTaddarray(int n, RGBINT rgbints[]);
+
+//对bmp中的一个色块应用3*3模板
+RGBINT RGBcoefficentaddmodel(BMPINT *bmpint, int i, int j, double model[][3]);
+
+//----------------------------------------------------------------------------------------------------
+
+//BMP转换为BMPINT，获得一块指向新BMPINT动态区域的指针，同时释放原始BMP
 BMPINT *BMPtoBMPINT(BMP *bmp);
-BMP *BMPINTtoBMP(BMPINT *bmp);
 
+//BMPINT转换为BMP，获得一块指向新BMP动态区域的指针，同时释放原始BMPINT
+BMP *BMPINTtoBMP(BMPINT *bmpint);
+
+//复制一个BMP，获得一块指向新BMP动态区域的指针
 BMP *BMPcopy(BMP *bmp);
+
+//两个BMP相与，获得一块指向新BMP动态区域的指针
 BMP *BMPand(BMP *bmpa, BMP *bmpb);
+
+//两个BMP相或，获得一块指向新BMP动态区域的指针
 BMP *BMPor(BMP *bmpa, BMP *bmpb);
+
+//BMP取非，获得一块指向新BMP动态区域的指针
 BMP *BMPnot(BMP *bmp);
+
+//BMP垂直方向放大，获得一块指向新BMP动态区域的指针
 BMP *BMPheightenlarge(BMP *bmp, float heightcof);
+
+//BMP水平方向放大，获得一块指向新BMP动态区域的指针
 BMP *BMPwidthenlarge(BMP *bmp, float widthcof);
+
+//BMP垂直与水平方向放大，获得一块指向新BMP动态区域的指针
 BMP *BMPenlarge(BMP *bmp, float heightcof, float widthcof);
+
+//BMP垂直与水平方向缩小，获得一块指向新BMP动态区域的指针
 BMP *BMPshrink(BMP *bmp, float heightcof, float widthcof);
+
+//BMP裁切，获得一块指向新BMP动态区域的指针
 BMP *BMPcut(BMP *bmp, int heightstart, int heightstop, int widthstart, int widthstop);
-BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widthstart, RGBQUAD defaultRGB);
+
+//BMP放置于大画布的制定坐标中，并在剩余位置填充默认颜色，获得一块指向新BMP动态区域的指针
+BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widthstart, RGB defaultRGB);
+
+//将BMP变为灰度图像，此时图像的RGB值相等，获得一块指向新BMP动态区域的指针
 BMP *BMPtogray(BMP *bmp);
+
+//将BMP反色，获得一块指向新BMP动态区域的指针
 BMP *BMPreversecolor(BMP *bmp);
 
-BMPINT *BMPINTcopy(BMPINT *bmp);
-BMPINT *BMPINTadd(BMPINT *bmpa, BMPINT *bmpb);
-BMPINT *BMPINTsub(BMPINT *bmpa, BMPINT *bmpb);
-BMPINT *BMPINTmultiply(BMPINT *bmpa, BMPINT *bmpb);
-BMPINT *BMPINTdivide(BMPINT *bmpa, BMPINT *bmpb, RGBQUAD defaultRGB);
+//复制一个BMPINT，获得一块指向新BMP动态区域的指针
+BMPINT *BMPINTcopy(BMPINT *bmpint);
 
+//两个BMPINT相加，获得一块指向新BMP动态区域的指针
+BMPINT *BMPINTadd(BMPINT *bmpinta, BMPINT *bmpintb);
+
+//两个BMPINT相减，获得一块指向新BMP动态区域的指针
+BMPINT *BMPINTsub(BMPINT *bmpinta, BMPINT *bmpintb);
+
+//两个BMPINT相乘，获得一块指向新BMP动态区域的指针
+BMPINT *BMPINTmultiply(BMPINT *bmpinta, BMPINT *bmpintb);
+
+//两个BMPINT相除，如果除零，则取默认颜色，获得一块指向新BMP动态区域的指针
+BMPINT *BMPINTdivide(BMPINT *bmpinta, BMPINT *bmpintb, RGB defaultRGB);
+
+//----------------------------------------------------------------------------------------------------
+
+//初始化一个二维char数组动态区域
 char **initcmodel(int height, int width, int initial);
+
+//初始化一个二维double数组动态区域
 double **initdmodel(int height, int width, double initial);
+
+//释放二维char数组动态区域
 void deletecmodel(char **model, int height, int width);
+
+//释放二维double数组动态区域
 void deletedmodel(double **model, int height, int width);
 
+//----------------------------------------------------------------------------------------------------
+
+//计算灰度图像四近邻（flag=0）或八近邻（flag=1）对比度
+double contrast(BMP *bmpgray, BOOL flag);
+
+//对bmp进行均值滤波，model指示对哪些像素进行
 BMP *averagefilter(BMP *bmp, char **model);
-BMP *sharpen(BMP *bmp, double model[][3]);
-BMP *horizonsharpen(BMP *bmp);
-BMP *verticalsharpen(BMP *bmp);
+
+//对灰色图像应用3*3模板锐化
+BMP *sharpen(BMP *bmpgray, double model[][3]);
+
+//对灰色图像水平锐化
+BMP *horizonsharpen(BMP *bmpgray);
+
+//对灰色图像垂直锐化
+BMP *verticalsharpen(BMP *bmpgray);
+
+//获得灰色图像灰度直方图，存在levelnum[256]数组中
+void graylevelcount(BMP *bmpgray, int *levelnum);
+
+//P参数法对灰色图像进行二值化处理
+BMP *pparameterbinaryzation(BMP *bmpgray, int *levelnum, double p);
 
 #endif
