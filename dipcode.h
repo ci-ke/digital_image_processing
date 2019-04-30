@@ -9,7 +9,7 @@ typedef char BOOL;
 typedef short TWOBYTES;
 typedef int FOURBYTES;
 
-#pragma pack(1) //以下三个结构体需要单字节对齐
+#pragma pack(1) //文件头与信息头需要单字节对齐
 
 //文件头
 typedef struct _BITMAPFILEHEADER

@@ -43,7 +43,7 @@ void showRgbQuan(RGB *pRGB, int num)
         {
             printf("\n");
         }
-        printf("(%-3d,%-3d,%-3d)   ", (pRGB + i)->red, (pRGB + i)->green, (pRGB + i)->blue);
+        printf("(%-3d,%-3d,%-3d) ", (pRGB + i)->red, (pRGB + i)->green, (pRGB + i)->blue);
     }
     printf("\n");
 }
@@ -67,21 +67,19 @@ BMP *readBMP(char *strFile)
             printf("file %s is not .bmp file.\n", strFile);
             return NULL;
         }
-#if SHOWHEADER == 1
-        showBmpHead(&bitHead);
-        printf("\n");
-#endif
         fread(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile); //需要保证信息头单字节对齐
-#if SHOWHEADER == 1
-        showBmpInforHead(&bitInfoHead);
-        printf("\n");
-#endif
     }
     else
     {
         printf("file %s open fail.\n", strFile);
         return NULL;
     }
+#if SHOWHEADER == 1
+    showBmpHead(&bitHead);
+    printf("\n");
+    showBmpInforHead(&bitInfoHead);
+    printf("\n");
+#endif
     RGB *pRgb = NULL;
     if (bitInfoHead.biBitCount < 24) //有调色板
     {
@@ -290,7 +288,7 @@ void saveBMP(BMP *bmp, char *strFile)
     }
     else
     {
-        printf("file %s can not save.\n", strFile);
+        printf("file %s save fail.\n", strFile);
     }
 }
 
