@@ -19,7 +19,7 @@ void showBmpHead(BITMAPFILEHEADER *pBmpHead)
     printf("实际位图数据的偏移字节数:%d\n", pBmpHead->bfOffBits);
 }
 
-void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead)
+void showBmpInfoHead(BITMAPINFOHEADER *pBmpInforHead)
 {
     printf("位图信息头:\n");
     printf("结构体的长度:%d\n", pBmpInforHead->biSize);
@@ -35,17 +35,16 @@ void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead)
     printf("重要颜色数:%d\n", pBmpInforHead->biClrImportant);
 }
 
-void showRgbQuan(RGB *pRGB, int num)
+void showRgbQuad(RGBQUAD *pRGB, int num)
 {
     for (int i = 0; i < num; i++)
     {
-        if (i % 5 == 0)
+        if (i != 0 && i % 5 == 0)
         {
             printf("\n");
         }
         printf("(%-3d,%-3d,%-3d) ", (pRGB + i)->red, (pRGB + i)->green, (pRGB + i)->blue);
     }
-    printf("\n");
 }
 
 BMP *readBMP(char *strFile)
@@ -57,17 +56,16 @@ BMP *readBMP(char *strFile)
         printf("program cannot run on this machine.\n");
         return NULL;
     }
-    FILE *pfile;
-    pfile = fopen(strFile, "rb");
+    FILE *pfile = fopen(strFile, "rb");
     if (pfile != NULL)
     {
-        fread(&bitHead, sizeof(BITMAPFILEHEADER), 1, pfile); //需要保证文件头单字节对齐
+        fread(&bitHead, BITMAPFILEHEADER_SIZE, 1, pfile); //需要保证文件头单字节对齐
         if (bitHead.bfType != 0x4d42)
         {
-            printf("file %s is not .bmp file.\n", strFile);
+            printf("file %s is not bmp file.\n", strFile);
             return NULL;
         }
-        fread(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile); //需要保证信息头单字节对齐
+        fread(&bitInfoHead, BITMAPINFOHEADER_SIZE, 1, pfile); //需要保证信息头单字节对齐
     }
     else
     {
@@ -77,137 +75,107 @@ BMP *readBMP(char *strFile)
 #if SHOWHEADER == 1
     showBmpHead(&bitHead);
     printf("\n");
-    showBmpInforHead(&bitInfoHead);
+    showBmpInfoHead(&bitInfoHead);
     printf("\n");
 #endif
-    RGB *pRgb = NULL;
-    if (bitInfoHead.biBitCount < 24) //有调色板
+    RGBQUAD *pRgb;
+    if (bitInfoHead.biBitCount <= 8) //有调色板
     {
         int nPlantNum = bitInfoHead.biClrUsed;
         if (!nPlantNum)
         {
             nPlantNum = pow(2, bitInfoHead.biBitCount);
         }
-        pRgb = (RGB *)malloc(sizeof(RGB) * nPlantNum);
-        memset(pRgb, 0, nPlantNum * sizeof(RGB));
-        fread(pRgb, sizeof(pRgb), nPlantNum, pfile); //需要保证RGB单字节对齐
+        pRgb = (RGBQUAD *)malloc(RGBQUAD_SIZE * nPlantNum);
+        memset(pRgb, 0, nPlantNum * RGBQUAD_SIZE);
+        fread(pRgb, RGBQUAD_SIZE, nPlantNum, pfile); //需要保证RGBQUAD单字节对齐
 #if SHOWHEADER == 1
-        printf("Color Plate Number:%d\n", nPlantNum);
-        printf("颜色板信息:\n");
-        showRgbQuan(pRgb, nPlantNum);
+        printf("调色板信息:%d色\n", nPlantNum);
+        showRgbQuad(pRgb, nPlantNum);
+        printf("\n");
 #endif
     }
     int width = bitInfoHead.biWidth;
     int height = bitInfoHead.biHeight;
-    int l_width = WIDTHcharS(width * bitInfoHead.biBitCount); //计算位图的实际宽度并确保它为32的倍数
+    int l_width = WIDTHBYTES(width * bitInfoHead.biBitCount);
     int nData = height * l_width;
     char *pColorData = (char *)malloc(nData);
     memset(pColorData, 0, nData);
     fread(pColorData, nData, 1, pfile); //把位图数据信息读到数组里
-    RGB **dataOfBmp_src = NULL;         //将位图数据转化为RGB数据
-    dataOfBmp_src = (RGB **)malloc(sizeof(RGB *) * height);
+    RGB **data = (RGB **)malloc(sizeof(RGB *) * height);
     for (int i = 0; i < height; i++)
     {
-        dataOfBmp_src[i] = (RGB *)malloc(sizeof(RGB) * width);
+        data[i] = (RGB *)malloc(sizeof(RGB) * width);
     }
-    if (bitInfoHead.biBitCount < 24) //有调色板，即位图为非真彩色
+    if (bitInfoHead.biBitCount <= 8 && bitInfoHead.biCompression == 0)
     {
-        if (bitInfoHead.biBitCount <= 8 && !bitInfoHead.biCompression)
+        int pnum = 8 / bitInfoHead.biBitCount;
+        int mbnum = 8 - bitInfoHead.biBitCount;
+        for (int i = 0; i < height; i++)
         {
-            int pnum = 8 / bitInfoHead.biBitCount;
-            int mbnum = 8 - bitInfoHead.biBitCount;
-            for (int i = 0; i < height; i++)
+            int k0 = (height - i - 1) * l_width;
+            for (int j = 0; j < width; j++)
             {
-                int k0 = (height - i - 1) * l_width; //k:取得该像素颜色数据在实际数据数组中的序号
-                for (int j = 0; j < width; j++)
+                char mixIndex = 0;
+                int k = k0 + (j / pnum);  //取得该像素颜色数据在实际数据数组中的序号
+                mixIndex = pColorData[k]; //提取当前像素的颜色的在颜色表中的索引值
+                if (bitInfoHead.biBitCount < 8)
                 {
-                    char mixIndex = 0;
-                    int k = k0 + (j / pnum);
-                    mixIndex = pColorData[k]; //提取当前像素的颜色的在颜色表中的索引值
-                    if (bitInfoHead.biBitCount < 8)
-                    {
-                        mixIndex = mixIndex << ((j % pnum) * bitInfoHead.biBitCount);
-                        mixIndex = mixIndex >> mbnum;
-                    }
-                    dataOfBmp_src[i][j].red = pRgb[mixIndex].red;
-                    dataOfBmp_src[i][j].green = pRgb[mixIndex].green;
-                    dataOfBmp_src[i][j].blue = pRgb[mixIndex].blue;
-                    dataOfBmp_src[i][j].reserved = pRgb[mixIndex].reserved;
+                    mixIndex = mixIndex << ((j % pnum) * bitInfoHead.biBitCount);
+                    mixIndex = mixIndex >> mbnum;
                 }
+                data[i][j].red = pRgb[mixIndex].red;
+                data[i][j].green = pRgb[mixIndex].green;
+                data[i][j].blue = pRgb[mixIndex].blue;
+                data[i][j].reserved = pRgb[mixIndex].reserved;
             }
         }
-        if (bitInfoHead.biBitCount == 16)
+    }
+    if (bitInfoHead.biBitCount == 16)
+    {
+        for (int i = 0; i < height; i++)
         {
-            if (!bitInfoHead.biCompression)
+            int k0 = (height - i - 1) * l_width;
+            for (int j = 0; j < width; j++)
             {
-                for (int i = 0; i < height; i++)
+                int k = k0 + j * 2;
+                if (bitInfoHead.biCompression == 0) //555格式
                 {
-                    int k0 = (height - i - 1) * l_width;
-                    for (int j = 0; j < width; j++)
-                    {
-                        short mixIndex = 0;
-                        int k = k0 + j * 2;
-                        short shortTemp;
-                        shortTemp = pColorData[k + 1];
-                        shortTemp = shortTemp << 8;
-                        mixIndex = pColorData[k] + shortTemp;
-                        dataOfBmp_src[i][j].red = pRgb[mixIndex].red;
-                        dataOfBmp_src[i][j].green = pRgb[mixIndex].green;
-                        dataOfBmp_src[i][j].blue = pRgb[mixIndex].blue;
-                        dataOfBmp_src[i][j].reserved = pRgb[mixIndex].reserved;
-                    }
+                    data[i][j].blue = pColorData[k] & 0x1F;
+                    data[i][j].green = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
+                    data[i][j].red = (pColorData[k + 1] << 1) >> 3;
+                    data[i][j].reserved = 0;
                 }
             }
         }
     }
-    else //位图为24/32位真彩色
+    if (bitInfoHead.biBitCount == 24 && bitInfoHead.biCompression == 0)
     {
-        if (bitInfoHead.biBitCount == 16)
+        for (int i = 0; i < height; i++)
         {
-            for (int i = 0; i < height; i++)
+            int k0 = (height - i - 1) * l_width;
+            for (int j = 0; j < width; j++)
             {
-                int k0 = (height - i - 1) * l_width;
-                for (int j = 0; j < width; j++)
-                {
-                    int k = k0 + j * 2;
-                    if (!bitInfoHead.biCompression) //555格式
-                    {
-                        dataOfBmp_src[i][j].blue = pColorData[k] & 0x1F;
-                        dataOfBmp_src[i][j].green = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
-                        dataOfBmp_src[i][j].red = (pColorData[k + 1] << 1) >> 3;
-                        dataOfBmp_src[i][j].reserved = 0;
-                    }
-                }
+                int k = k0 + (j * 3);
+                data[i][j].red = pColorData[k + 2];
+                data[i][j].green = pColorData[k + 1];
+                data[i][j].blue = pColorData[k];
+                data[i][j].reserved = 0;
             }
         }
-        if (bitInfoHead.biBitCount == 24 && !bitInfoHead.biCompression)
+    }
+    if (bitInfoHead.biBitCount == 32 && bitInfoHead.biCompression == 0)
+    {
+        for (int i = 0; i < height; i++)
         {
-            for (int i = 0; i < height; i++)
+            int k0 = (height - i - 1) * l_width;
+            for (int j = 0; j < width; j++)
             {
-                int k0 = (height - i - 1) * l_width;
-                for (int j = 0; j < width; j++)
-                {
-                    int k = k0 + (j * 3);
-                    dataOfBmp_src[i][j].red = pColorData[k + 2];
-                    dataOfBmp_src[i][j].green = pColorData[k + 1];
-                    dataOfBmp_src[i][j].blue = pColorData[k];
-                    dataOfBmp_src[i][j].reserved = 0;
-                }
-            }
-        }
-        if (bitInfoHead.biBitCount == 32 && !bitInfoHead.biCompression)
-        {
-            for (int i = 0; i < height; i++)
-            {
-                int k0 = (height - i - 1) * l_width;
-                for (int j = 0; j < width; j++)
-                {
-                    int k = k0 + (j * 4);
-                    dataOfBmp_src[i][j].red = pColorData[k + 2];
-                    dataOfBmp_src[i][j].green = pColorData[k + 1];
-                    dataOfBmp_src[i][j].blue = pColorData[k];
-                    dataOfBmp_src[i][j].reserved = pColorData[k + 3];
-                }
+                int k = k0 + (j * 4);
+                data[i][j].red = pColorData[k + 2];
+                data[i][j].green = pColorData[k + 1];
+                data[i][j].blue = pColorData[k];
+                data[i][j].reserved = pColorData[k + 3];
             }
         }
     }
@@ -221,7 +189,7 @@ BMP *readBMP(char *strFile)
     }
     fclose(pfile);
     BMP *bmp = (BMP *)malloc(sizeof(BMP));
-    bmp->data = dataOfBmp_src;
+    bmp->data = data;
     bmp->width = width;
     bmp->height = height;
     printf("file %s read success.\n", strFile);
@@ -233,22 +201,18 @@ void saveBMP(BMP *bmp, char *strFile)
     FILE *pfile = fopen(strFile, "wb");
     if (pfile != NULL)
     {
-        RGB **dataOfBmp = bmp->data;
+        short biBitCount = 24;
+        RGB **data = bmp->data;
         int width = bmp->width;
         int height = bmp->height;
         BITMAPFILEHEADER bitHead;
         BITMAPINFOHEADER bitInfoHead;
-        short biBitCount = 32;
         bitHead.bfType = 0x4d42;
         bitHead.bfSize = 0;
         bitHead.bfReserved1 = 0;
         bitHead.bfReserved2 = 0;
         bitHead.bfOffBits = 54;
-        if (biBitCount <= 8)
-        {
-            bitHead.bfOffBits += (int)pow(2, biBitCount) * 4;
-        }
-        fwrite(&bitHead.bfType, sizeof(BITMAPFILEHEADER), 1, pfile);
+        fwrite(&bitHead.bfType, BITMAPFILEHEADER_SIZE, 1, pfile);
         bitInfoHead.biSize = 40;
         bitInfoHead.biWidth = width;
         bitInfoHead.biHeight = height;
@@ -260,27 +224,21 @@ void saveBMP(BMP *bmp, char *strFile)
         bitInfoHead.biYPelsPerMeter = 0;
         bitInfoHead.biClrImportant = 0;
         bitInfoHead.biClrUsed = 0;
-        fwrite(&bitInfoHead, sizeof(BITMAPINFOHEADER), 1, pfile);
-        if (biBitCount <= 8)
-        {
-            char tmp = 0;
-            for (int i = 0; i < (int)pow(2, biBitCount); i++)
-            {
-                tmp = (char)i;
-                fwrite(&tmp, 1, 4, pfile);
-            }
-        }
-        int l_width = WIDTHcharS(width * biBitCount) - width * 4; //计算为确保位图数据区的实际宽度为32字节的整数倍需添加的'0'字节数
+        fwrite(&bitInfoHead, BITMAPINFOHEADER_SIZE, 1, pfile);
+        int l_width = WIDTHBYTES(width * biBitCount);
+        int fillbytes = l_width - width * (biBitCount / 8);
+        char zero = 0;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
-                fwrite(&dataOfBmp[height - i - 1][j], 4, 1, pfile);
+                fwrite(&data[height - i - 1][j].blue, 1, 1, pfile);
+                fwrite(&data[height - i - 1][j].green, 1, 1, pfile);
+                fwrite(&data[height - i - 1][j].red, 1, 1, pfile);
             }
-            char tmp = 0;
-            for (int j = 0; j < l_width; j++)
+            for (int k = 0; k < fillbytes; k++)
             {
-                fwrite(&tmp, 1, 1, pfile);
+                fwrite(&zero, 1, 1, pfile);
             }
         }
         fclose(pfile);
@@ -603,7 +561,6 @@ BMPINT *BMPtoBMPINT(BMP *bmp)
             bmpintnew->data[i][j] = RGBtoRGBINT(bmp->data[i][j]);
         }
     }
-    deleteBMP(bmp);
     return bmpintnew;
 }
 
@@ -617,7 +574,6 @@ BMP *BMPINTtoBMP(BMPINT *bmpint)
             bmpnew->data[i][j] = RGBINTtoRGB(bmpint->data[i][j]);
         }
     }
-    deleteBMPINT(bmpint);
     return bmpnew;
 }
 
@@ -1051,7 +1007,6 @@ BMP *sharpen(BMP *bmpgray, double model[][3])
             }
         }
     }
-    deleteBMPINT(bmpintbak);
     if (minblue < 0)
     {
         for (int i = 0; i < bmpgray->height; i++)
@@ -1065,6 +1020,8 @@ BMP *sharpen(BMP *bmpgray, double model[][3])
         }
     }
     BMP *bmpnew = BMPINTtoBMP(dstbmpint);
+    deleteBMPINT(dstbmpint);
+    deleteBMPINT(bmpintbak);
     return bmpnew;
 }
 

@@ -1,15 +1,19 @@
 #ifndef BMP_PROCESS_H
 #define BMP_PROCESS_H
 
-#define WIDTHcharS(bits) (((bits) + 31) / 32 * 4)
+#define WIDTHBYTES(bits) (((bits) + 31) / 32 * 4)
+
 #define SHOWHEADER 0
+#define BITMAPFILEHEADER_SIZE 14
+#define BITMAPINFOHEADER_SIZE 40
+#define RGBQUAD_SIZE 4
 
 typedef unsigned char uchar;
 typedef char BOOL;
 typedef short TWOBYTES;
 typedef int FOURBYTES;
 
-#pragma pack(1) //文件头与信息头需要单字节对齐
+#pragma pack(1) //从文件中直接读取的文件头、信息头与调色板需要单字节对齐
 
 //文件头
 typedef struct _BITMAPFILEHEADER
@@ -28,7 +32,7 @@ typedef struct _BITMAPINFOHEADER
 	FOURBYTES biWidth;		   //位图宽
 	FOURBYTES biHeight;		   //位图高
 	TWOBYTES biPlanes;		   //平面数，为1
-	TWOBYTES biBitCount;	   //采用颜色位数，可以是1，2，4，8，16，24，新的可以是32
+	TWOBYTES biBitCount;	   //采用颜色位数，可以是1，4，8，16，24，32
 	FOURBYTES biCompression;   //压缩方式，可以是0，1，2，其中0表示不压缩
 	FOURBYTES biSizeImage;	 //实际位图数据占用的字节数
 	FOURBYTES biXPelsPerMeter; //X方向分辨率
@@ -37,15 +41,24 @@ typedef struct _BITMAPINFOHEADER
 	FOURBYTES biClrImportant;  //重要颜色数，如果为0，则表示所有颜色都是重要的
 } BITMAPINFOHEADER;
 
+//调色板，bitInfoHead.biBitCount为1，4，8时才用到的结构
+typedef struct _RGBQUAD
+{
+	uchar blue;		//该颜色的蓝色分量
+	uchar green;	//该颜色的绿色分量
+	uchar red;		//该颜色的红色分量
+	uchar reserved; //保留值
+} RGBQUAD;
+
 #pragma pack()
 
-//调色板Palette，当然，这里是对那些需要调色板的位图文件而言的。24位和32位是不需要调色板的。（似乎是调色板结构体个数等于使用的颜色数。）
+//RGB
 typedef struct _RGB
 {
-	uchar blue;	//该颜色的蓝色分量
-	uchar green;   //该颜色的绿色分量
-	uchar red;	 //该颜色的红色分量
-	char reserved; //保留值
+	uchar blue;		//该颜色的蓝色分量
+	uchar green;	//该颜色的绿色分量
+	uchar red;		//该颜色的红色分量
+	uchar reserved; //保留值
 } RGB;
 
 //RGB的扩展，只用于计算
@@ -79,10 +92,10 @@ typedef struct _BMPINT
 void showBmpHead(BITMAPFILEHEADER *pBmpHead);
 
 //显示bmp文件信息头
-void showBmpInforHead(BITMAPINFOHEADER *pBmpInforHead);
+void showBmpInfoHead(BITMAPINFOHEADER *pBmpInforHead);
 
-//显示颜色板
-void showRgbQuan(RGB *pRGB, int num);
+//显示调色板
+void showRgbQuad(RGBQUAD *pRGB, int num);
 
 //----------------------------------------------------------------------------------------------------
 
@@ -150,10 +163,10 @@ RGBINT RGBcoefficentaddmodel(BMPINT *bmpint, int i, int j, double model[][3]);
 
 //----------------------------------------------------------------------------------------------------
 
-//BMP转换为BMPINT，获得一块指向新BMPINT动态区域的指针，同时释放原始BMP
+//BMP转换为BMPINT，获得一块指向新BMPINT动态区域的指针
 BMPINT *BMPtoBMPINT(BMP *bmp);
 
-//BMPINT转换为BMP，获得一块指向新BMP动态区域的指针，同时释放原始BMPINT
+//BMPINT转换为BMP，获得一块指向新BMP动态区域的指针
 BMP *BMPINTtoBMP(BMPINT *bmpint);
 
 //复制一个BMP，获得一块指向新BMP动态区域的指针
@@ -241,7 +254,7 @@ BMP *verticalsharpen(BMP *bmpgray);
 //获得灰色图像灰度直方图，存在levelnum[256]数组中
 void graylevelcount(BMP *bmpgray, int *levelnum);
 
-//P参数法对灰色图像进行二值化处理
+//P参数法对灰色图像进行二值化处理，需传入灰度直方图
 BMP *pparameterbinaryzation(BMP *bmpgray, int *levelnum, double p);
 
 #endif

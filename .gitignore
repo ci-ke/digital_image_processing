@@ -1,3 +1,4 @@
 ﻿.vscode/
 *.exe
 pic/
+main.c
