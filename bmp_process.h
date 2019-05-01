@@ -102,7 +102,7 @@ BMPINT *initBMPINT(int height, int width, RGB defaultRGB);
 void deleteBMP(BMP *bmp);
 
 //释放BMPINT动态区域
-void deleteBMPINT(BMPINT *bmp);
+void deleteBMPINT(BMPINT *bmpint);
 
 //----------------------------------------------------------------------------------------------------
 

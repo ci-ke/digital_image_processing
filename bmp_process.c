@@ -54,7 +54,7 @@ BMP *readBMP(char *strFile)
     BITMAPINFOHEADER bitInfoHead;
     if (sizeof(BITMAPFILEHEADER) != 14 || sizeof(BITMAPINFOHEADER) != 40)
     {
-        printf("program can not run at this machine.\n");
+        printf("program cannot run on this machine.\n");
         return NULL;
     }
     FILE *pfile;
@@ -294,7 +294,7 @@ void saveBMP(BMP *bmp, char *strFile)
 
 BMP *initBMP(int height, int width, RGB defaultRGB)
 {
-    BMP *bmpintnew = (BMP *)malloc(sizeof(BMP));
+    BMP *bmpnew = (BMP *)malloc(sizeof(BMP));
     RGB **data = (RGB **)malloc(sizeof(RGB *) * height);
     for (int i = 0; i < height; i++)
     {
@@ -304,10 +304,10 @@ BMP *initBMP(int height, int width, RGB defaultRGB)
             data[i][j] = defaultRGB;
         }
     }
-    bmpintnew->data = data;
-    bmpintnew->height = height;
-    bmpintnew->width = width;
-    return bmpintnew;
+    bmpnew->data = data;
+    bmpnew->height = height;
+    bmpnew->width = width;
+    return bmpnew;
 }
 
 BMPINT *initBMPINT(int height, int width, RGB defaultRGB)
@@ -623,15 +623,15 @@ BMP *BMPINTtoBMP(BMPINT *bmpint)
 
 BMP *BMPcopy(BMP *bmp)
 {
-    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpintnew->data[i][j] = bmp->data[i][j];
+            bmpnew->data[i][j] = bmp->data[i][j];
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPand(BMP *bmpa, BMP *bmpb)
@@ -640,15 +640,15 @@ BMP *BMPand(BMP *bmpa, BMP *bmpb)
     {
         printf("image size not equal\n");
     }
-    BMP *bmpintnew = initBMP(bmpa->height, bmpa->width, BLACK);
+    BMP *bmpnew = initBMP(bmpa->height, bmpa->width, BLACK);
     for (int i = 0; i < bmpa->height; i++)
     {
         for (int j = 0; j < bmpa->width; j++)
         {
-            bmpintnew->data[i][j] = RGBand(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpnew->data[i][j] = RGBand(bmpa->data[i][j], bmpb->data[i][j]);
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPor(BMP *bmpa, BMP *bmpb)
@@ -657,62 +657,62 @@ BMP *BMPor(BMP *bmpa, BMP *bmpb)
     {
         printf("image size not equal\n");
     }
-    BMP *bmpintnew = initBMP(bmpa->height, bmpa->width, BLACK);
+    BMP *bmpnew = initBMP(bmpa->height, bmpa->width, BLACK);
     for (int i = 0; i < bmpa->height; i++)
     {
         for (int j = 0; j < bmpa->width; j++)
         {
-            bmpintnew->data[i][j] = RGBor(bmpa->data[i][j], bmpb->data[i][j]);
+            bmpnew->data[i][j] = RGBor(bmpa->data[i][j], bmpb->data[i][j]);
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPnot(BMP *bmp)
 {
-    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpintnew->data[i][j] = RGBnot(bmp->data[i][j]);
+            bmpnew->data[i][j] = RGBnot(bmp->data[i][j]);
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPheightenlarge(BMP *bmp, float heightcof)
 {
     int newheight = (int)(heightcof * bmp->height);
-    BMP *bmpintnew = initBMP(newheight, bmp->width, GRAY127);
+    BMP *bmpnew = initBMP(newheight, bmp->width, GRAY127);
     for (int j = 0; j < bmp->width; j++)
     {
         for (int i = 0; i < bmp->height; i++)
         {
             for (int k = (int)(i * heightcof); k < (int)((i + 1) * heightcof); k++)
             {
-                bmpintnew->data[k][j] = bmp->data[i][j];
+                bmpnew->data[k][j] = bmp->data[i][j];
             }
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPwidthenlarge(BMP *bmp, float widthcof)
 {
     int newwidth = (int)(widthcof * bmp->width);
-    BMP *bmpintnew = initBMP(bmp->height, newwidth, GRAY127);
+    BMP *bmpnew = initBMP(bmp->height, newwidth, GRAY127);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
             for (int k = (int)(j * widthcof); k < (int)((j + 1) * widthcof); k++)
             {
-                bmpintnew->data[i][k] = bmp->data[i][j];
+                bmpnew->data[i][k] = bmp->data[i][j];
             }
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPenlarge(BMP *bmp, float heightcof, float widthcof)
@@ -728,7 +728,7 @@ BMP *BMPshrink(BMP *bmp, float heightcof, float widthcof)
     int newheight, newwidth;
     newheight = (int)(heightcof * bmp->height);
     newwidth = (int)(widthcof * bmp->width);
-    BMP *bmpintnew = initBMP(newheight, newwidth, BLACK);
+    BMP *bmpnew = initBMP(newheight, newwidth, BLACK);
     for (int i = 0; i < newheight; i++)
     {
         for (int j = 0; j < newwidth; j++)
@@ -743,10 +743,10 @@ BMP *BMPshrink(BMP *bmp, float heightcof, float widthcof)
             {
                 jnew = bmp->width - 1;
             }
-            bmpintnew->data[i][j] = bmp->data[inew][jnew];
+            bmpnew->data[i][j] = bmp->data[inew][jnew];
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPcut(BMP *bmp, int heightstart, int heightstop, int widthstart, int widthstop)
@@ -754,20 +754,20 @@ BMP *BMPcut(BMP *bmp, int heightstart, int heightstop, int widthstart, int width
     int newheight, newwidth;
     newheight = heightstop - heightstart;
     newwidth = widthstop - widthstart;
-    BMP *bmpintnew = initBMP(newheight, newwidth, BLACK);
+    BMP *bmpnew = initBMP(newheight, newwidth, BLACK);
     for (int i = 0; i < newheight; i++)
     {
         for (int j = 0; j < newwidth; j++)
         {
-            bmpintnew->data[i][j] = bmp->data[i + heightstart][j + widthstart];
+            bmpnew->data[i][j] = bmp->data[i + heightstart][j + widthstart];
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widthstart, RGB defaultRGB)
 {
-    BMP *bmpintnew = initBMP(largeheight, largewidth, defaultRGB);
+    BMP *bmpnew = initBMP(largeheight, largewidth, defaultRGB);
     int tempi, tempj;
     for (int i = 0; i < bmp->height; i++)
     {
@@ -775,43 +775,43 @@ BMP *BMPput(BMP *bmp, int largeheight, int largewidth, int heightstart, int widt
         {
             if (i + heightstart < largeheight && j + widthstart < largewidth)
             {
-                bmpintnew->data[i + heightstart][j + widthstart] = bmp->data[i][j];
+                bmpnew->data[i + heightstart][j + widthstart] = bmp->data[i][j];
             }
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPtogray(BMP *bmp)
 {
-    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
     double gray;
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
             gray = 0.299 * bmp->data[i][j].red + 0.587 * bmp->data[i][j].green + 0.114 * bmp->data[i][j].blue;
-            bmpintnew->data[i][j].red = (char)gray;
-            bmpintnew->data[i][j].green = (char)gray;
-            bmpintnew->data[i][j].blue = (char)gray;
+            bmpnew->data[i][j].red = (char)gray;
+            bmpnew->data[i][j].green = (char)gray;
+            bmpnew->data[i][j].blue = (char)gray;
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMP *BMPreversecolor(BMP *bmp)
 {
-    BMP *bmpintnew = initBMP(bmp->height, bmp->width, BLACK);
+    BMP *bmpnew = initBMP(bmp->height, bmp->width, BLACK);
     for (int i = 0; i < bmp->height; i++)
     {
         for (int j = 0; j < bmp->width; j++)
         {
-            bmpintnew->data[i][j].red = 255 - bmp->data[i][j].red;
-            bmpintnew->data[i][j].green = 255 - bmp->data[i][j].green;
-            bmpintnew->data[i][j].blue = 255 - bmp->data[i][j].blue;
+            bmpnew->data[i][j].red = 255 - bmp->data[i][j].red;
+            bmpnew->data[i][j].green = 255 - bmp->data[i][j].green;
+            bmpnew->data[i][j].blue = 255 - bmp->data[i][j].blue;
         }
     }
-    return bmpintnew;
+    return bmpnew;
 }
 
 BMPINT *BMPINTcopy(BMPINT *bmpint)
