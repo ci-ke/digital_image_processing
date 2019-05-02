@@ -1,8 +1,6 @@
 #ifndef BMP_PROCESS_H
 #define BMP_PROCESS_H
 
-#define WIDTHBYTES(bits) (((bits) + 31) / 32 * 4)
-
 #define SHOWHEADER 0
 #define BITMAPFILEHEADER_SIZE 14
 #define BITMAPINFOHEADER_SIZE 40
@@ -22,7 +20,7 @@ typedef struct _BITMAPFILEHEADER
 	FOURBYTES bfSize;	 //文件大小
 	TWOBYTES bfReserved1; //保留字，不考虑
 	TWOBYTES bfReserved2; //保留字，同上
-	FOURBYTES bfOffBits;  //实际位图数据的偏移字节数，即前三个部分长度之和
+	FOURBYTES bfOffBits;  //实际位图数据的偏移字节数
 } BITMAPFILEHEADER;
 
 //信息头
@@ -55,10 +53,10 @@ typedef struct _RGBQUAD
 //RGB
 typedef struct _RGB
 {
-	uchar blue;		//该颜色的蓝色分量
-	uchar green;	//该颜色的绿色分量
-	uchar red;		//该颜色的红色分量
-	uchar reserved; //保留值
+	uchar blue;
+	uchar green;
+	uchar red;
+	uchar reserved;
 } RGB;
 
 //RGB的扩展，只用于计算

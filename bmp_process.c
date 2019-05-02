@@ -5,6 +5,8 @@
 #include <memory.h>
 #include <string.h>
 
+#define WIDTHBYTES(bits) (((int)((bits) + 31) / 32) * 4)
+
 RGB BLACK = {0, 0, 0, 0};
 RGB WHITE = {255, 255, 255, 0};
 RGB GRAY127 = {127, 127, 127, 0};
@@ -66,6 +68,11 @@ BMP *readBMP(char *strFile)
             return NULL;
         }
         fread(&bitInfoHead, BITMAPINFOHEADER_SIZE, 1, pfile); //需要保证信息头单字节对齐
+        if (bitInfoHead.biCompression != 0)
+        {
+            printf("program cannot handle bmp with compression.\n");
+            return NULL;
+        }
     }
     else
     {
@@ -107,7 +114,7 @@ BMP *readBMP(char *strFile)
     {
         data[i] = (RGB *)malloc(sizeof(RGB) * width);
     }
-    if (bitInfoHead.biBitCount <= 8 && bitInfoHead.biCompression == 0)
+    if (bitInfoHead.biBitCount == 1 || bitInfoHead.biBitCount == 4 || bitInfoHead.biBitCount == 8)
     {
         int pnum = 8 / bitInfoHead.biBitCount;
         int mbnum = 8 - bitInfoHead.biBitCount;
@@ -131,7 +138,7 @@ BMP *readBMP(char *strFile)
             }
         }
     }
-    if (bitInfoHead.biBitCount == 16)
+    else if (bitInfoHead.biBitCount == 16)
     {
         for (int i = 0; i < height; i++)
         {
@@ -139,17 +146,14 @@ BMP *readBMP(char *strFile)
             for (int j = 0; j < width; j++)
             {
                 int k = k0 + j * 2;
-                if (bitInfoHead.biCompression == 0) //555格式
-                {
-                    data[i][j].blue = pColorData[k] & 0x1F;
-                    data[i][j].green = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
-                    data[i][j].red = (pColorData[k + 1] << 1) >> 3;
-                    data[i][j].reserved = 0;
-                }
+                data[i][j].blue = pColorData[k] & 0x1F;
+                data[i][j].green = (((pColorData[k + 1] << 6) & 0xFF) >> 3) + (pColorData[k] >> 5);
+                data[i][j].red = (pColorData[k + 1] << 1) >> 3;
+                data[i][j].reserved = 0;
             }
         }
     }
-    if (bitInfoHead.biBitCount == 24 && bitInfoHead.biCompression == 0)
+    else if (bitInfoHead.biBitCount == 24)
     {
         for (int i = 0; i < height; i++)
         {
@@ -164,7 +168,7 @@ BMP *readBMP(char *strFile)
             }
         }
     }
-    if (bitInfoHead.biBitCount == 32 && bitInfoHead.biCompression == 0)
+    else if (bitInfoHead.biBitCount == 32)
     {
         for (int i = 0; i < height; i++)
         {
@@ -179,7 +183,20 @@ BMP *readBMP(char *strFile)
             }
         }
     }
-    if (bitInfoHead.biBitCount < 24 && pRgb)
+    else
+    {
+        if (pRgb)
+        {
+            free(pRgb);
+        }
+        if (pColorData)
+        {
+            free(pColorData);
+        }
+        printf("bmp has bad color depth.\n");
+        return NULL;
+    }
+    if (pRgb)
     {
         free(pRgb);
     }
