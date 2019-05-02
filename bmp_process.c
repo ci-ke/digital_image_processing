@@ -85,7 +85,7 @@ BMP *readBMP(char *strFile)
     showBmpInfoHead(&bitInfoHead);
     printf("\n");
 #endif
-    RGBQUAD *pRgb;
+    RGBQUAD *pRgb = NULL;
     if (bitInfoHead.biBitCount <= 8) //有调色板
     {
         int nPlantNum = bitInfoHead.biClrUsed;
@@ -185,25 +185,13 @@ BMP *readBMP(char *strFile)
     }
     else
     {
-        if (pRgb)
-        {
-            free(pRgb);
-        }
-        if (pColorData)
-        {
-            free(pColorData);
-        }
+        free(pRgb);
+        free(pColorData);
         printf("bmp has bad color depth.\n");
         return NULL;
     }
-    if (pRgb)
-    {
-        free(pRgb);
-    }
-    if (pColorData)
-    {
-        free(pColorData);
-    }
+    free(pRgb);
+    free(pColorData);
     fclose(pfile);
     BMP *bmp = (BMP *)malloc(sizeof(BMP));
     bmp->data = data;
