@@ -1056,14 +1056,14 @@ void graylevelcount(BMP *bmpgray, int *graylevelnum)
     }
 }
 
-BMP *pparameterbinaryzation(BMP *bmpgray, int *levelnum, double p)
+BMP *pparameterbinaryzation(BMP *bmpgray, int *graylevelnum, double p)
 {
     int num = (int)(p * bmpgray->height * bmpgray->width);
     int count = 0;
     int level = 0;
     while (count < num && level < 256)
     {
-        count += levelnum[level];
+        count += graylevelnum[level];
         level++;
     }
     BMP *bmpnew = initBMP(bmpgray->height, bmpgray->width, GRAY127);
