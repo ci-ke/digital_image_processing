@@ -132,6 +132,9 @@ RGB RGBor(RGB rgb1, RGB rgb2);
 //RGB色块取非
 RGB RGBnot(RGB rgb);
 
+//两个RGB是否相等
+BOOL RGBequal(RGB rgb1, RGB rgb2);
+
 //n个RGB色块的平均值
 RGB RGBaverage(int n, RGB rgbs[]);
 
@@ -223,11 +226,17 @@ BMPINT *BMPINTdivide(BMPINT *bmpinta, BMPINT *bmpintb, RGB defaultRGB);
 //初始化一个二维char数组动态区域
 char **initcmodel(int height, int width, int initial);
 
+//初始化一个二维int数组动态区域
+int **initimodel(int height, int width, double initial);
+
 //初始化一个二维double数组动态区域
 double **initdmodel(int height, int width, double initial);
 
 //释放二维char数组动态区域
 void deletecmodel(char **model, int height, int width);
+
+//释放二维int数组动态区域
+void deleteimodel(int **model, int height, int width);
 
 //释放二维double数组动态区域
 void deletedmodel(double **model, int height, int width);
@@ -254,5 +263,11 @@ void graylevelcount(BMP *bmpgray, int *graylevelnum);
 
 //P参数法对灰色图像进行二值化处理，需传入灰度直方图
 BMP *pparameterbinaryzation(BMP *bmpgray, int *graylevelnum, double p);
+
+//防左上越界读取int model
+int imodelget(int **model,int i,int j,int defaultvalue);
+
+//对图像中的某种颜色贴标签
+int labelling(BMP *bmp, int **label, RGB targetRGB);
 
 #endif

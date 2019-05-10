@@ -408,6 +408,20 @@ RGB RGBnot(RGB rgb)
     return rgbnew;
 }
 
+BOOL RGBequal(RGB rgb1, RGB rgb2)
+{
+    if (rgb1.blue == rgb2.blue &&
+        rgb1.green == rgb2.green &&
+        rgb1.red == rgb2.red)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 RGB RGBaverage(int n, RGB rgbs[])
 {
     RGB rgbnew;
@@ -867,12 +881,26 @@ char **initcmodel(int height, int width, int initial)
     return a;
 }
 
+int **initimodel(int height, int width, double initial)
+{
+    int **a = (int **)malloc(sizeof(int *) * height);
+    for (int i = 0; i < height; i++)
+    {
+        a[i] = (int *)malloc(sizeof(int) * width);
+        for (int j = 0; j < width; j++)
+        {
+            a[i][j] = initial;
+        }
+    }
+    return a;
+}
+
 double **initdmodel(int height, int width, double initial)
 {
     double **a = (double **)malloc(sizeof(double *) * height);
     for (int i = 0; i < height; i++)
     {
-        a[i] = (double *)malloc(width);
+        a[i] = (double *)malloc(sizeof(double) * width);
         for (int j = 0; j < width; j++)
         {
             a[i][j] = initial;
@@ -882,6 +910,21 @@ double **initdmodel(int height, int width, double initial)
 }
 
 void deletecmodel(char **model, int height, int width)
+{
+    for (int i = 0; i < height; i++)
+    {
+        if (model[i])
+        {
+            free(model[i]);
+        }
+    }
+    if (model)
+    {
+        free(model);
+    }
+}
+
+void deleteimodel(int **model, int height, int width)
 {
     for (int i = 0; i < height; i++)
     {
@@ -1082,4 +1125,46 @@ BMP *pparameterbinaryzation(BMP *bmpgray, int *graylevelnum, double p)
         }
     }
     return bmpnew;
+}
+
+int imodelget(int **model, int i, int j, int defaultvalue)
+{
+    if (i == 0 || j == 0)
+    {
+        return defaultvalue;
+    }
+    else
+    {
+        return model[i][j];
+    }
+}
+
+int labelling(BMP *bmp, int **label, RGB targetRGB)
+{
+    int Lab = 0;
+    int N = 0;
+    int scaned[4];
+    int setscaned[4]={-1};
+    int scanedlabel1;
+    int scanedlabel2;
+    for (int i = 0; i < bmp->height; i++)
+    {
+        for (int j = 0; j < bmp->width; j++)
+        {
+            if (RGBequal(bmp->data[i][j], targetRGB))
+            {
+                scaned[0] = imodelget(label, i - 1, j - 1, 0);
+                scaned[1] = imodelget(label, i - 1, j, 0);
+                scaned[2] = imodelget(label, i - 1, j + 1, 0);
+                scaned[3] = imodelget(label, i, j - 1, 0);
+                if (scaned[0] == 0 && scaned[1] == 0 && scaned[2] == 0 && scaned[3] == 0)
+                {
+                    N++;
+                    Lab = N;
+                    label[i][j] = Lab;
+                }
+            }
+        }
+    }
+    return Lab;
 }

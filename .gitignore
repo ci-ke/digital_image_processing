@@ -2,3 +2,4 @@
 *.exe
 pic/
 main.c
+*.doc*
