@@ -264,10 +264,4 @@ void graylevelcount(BMP *bmpgray, int *graylevelnum);
 //P参数法对灰色图像进行二值化处理，需传入灰度直方图
 BMP *pparameterbinaryzation(BMP *bmpgray, int *graylevelnum, double p);
 
-//防左上越界读取int model
-int imodelget(int **model,int i,int j,int defaultvalue);
-
-//对图像中的某种颜色贴标签
-int labelling(BMP *bmp, int **label, RGB targetRGB);
-
 #endif
